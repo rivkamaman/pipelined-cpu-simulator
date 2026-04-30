@@ -19,10 +19,13 @@ public:
 
 private:
     void step();
-    void execute(const Instruction& instruction);
-    void printState(const Instruction& instruction, std::size_t executedPc) const;
+    void fetch();
+    void decode();
+    void execute();
+    void printState(std::size_t executedPc) const;
 
     std::vector<Instruction> program;
+    Instruction currentInstruction;
     Registers registers;
     Memory memory;
     ALU alu;

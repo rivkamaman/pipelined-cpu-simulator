@@ -36,66 +36,74 @@ void CPU::step() {
     }
 
     const std::size_t executedPc = programCounter;
-    const Instruction instruction = program[programCounter];
-    ++programCounter;
 
-    execute(instruction);
+    fetch();
+    decode();
+    execute();
     ++cycle;
-    printState(instruction, executedPc);
+    printState(executedPc);
 }
 
-void CPU::execute(const Instruction& instruction) {
-    switch (instruction.opcode) {
+void CPU::fetch() {
+    currentInstruction = program[programCounter];
+    ++programCounter;
+}
+
+void CPU::decode() {
+}
+
+void CPU::execute() {
+    switch (currentInstruction.opcode) {
         case Opcode::MOV:
-            registers.write(static_cast<std::size_t>(instruction.dst), instruction.immediate);
+            registers.write(static_cast<std::size_t>(currentInstruction.dst), currentInstruction.immediate);
             break;
         case Opcode::ADD:
             registers.write(
-                static_cast<std::size_t>(instruction.dst),
+                static_cast<std::size_t>(currentInstruction.dst),
                 alu.add(
-                    registers.read(static_cast<std::size_t>(instruction.src1)),
-                    registers.read(static_cast<std::size_t>(instruction.src2))
+                    registers.read(static_cast<std::size_t>(currentInstruction.src1)),
+                    registers.read(static_cast<std::size_t>(currentInstruction.src2))
                 )
             );
             break;
         case Opcode::SUB:
             registers.write(
-                static_cast<std::size_t>(instruction.dst),
+                static_cast<std::size_t>(currentInstruction.dst),
                 alu.sub(
-                    registers.read(static_cast<std::size_t>(instruction.src1)),
-                    registers.read(static_cast<std::size_t>(instruction.src2))
+                    registers.read(static_cast<std::size_t>(currentInstruction.src1)),
+                    registers.read(static_cast<std::size_t>(currentInstruction.src2))
                 )
             );
             break;
         case Opcode::LOAD:
             registers.write(
-                static_cast<std::size_t>(instruction.dst),
-                memory.read(static_cast<std::size_t>(instruction.immediate))
+                static_cast<std::size_t>(currentInstruction.dst),
+                memory.read(static_cast<std::size_t>(currentInstruction.immediate))
             );
             break;
         case Opcode::STORE:
             memory.write(
-                static_cast<std::size_t>(instruction.immediate),
-                registers.read(static_cast<std::size_t>(instruction.src1))
+                static_cast<std::size_t>(currentInstruction.immediate),
+                registers.read(static_cast<std::size_t>(currentInstruction.src1))
             );
             break;
         case Opcode::CMP:
             zeroFlag = alu.equal(
-                registers.read(static_cast<std::size_t>(instruction.src1)),
-                registers.read(static_cast<std::size_t>(instruction.src2))
+                registers.read(static_cast<std::size_t>(currentInstruction.src1)),
+                registers.read(static_cast<std::size_t>(currentInstruction.src2))
             );
             break;
         case Opcode::JMP:
-            programCounter = static_cast<std::size_t>(instruction.immediate);
+            programCounter = static_cast<std::size_t>(currentInstruction.immediate);
             break;
         case Opcode::JZ:
             if (zeroFlag) {
-                programCounter = static_cast<std::size_t>(instruction.immediate);
+                programCounter = static_cast<std::size_t>(currentInstruction.immediate);
             }
             break;
         case Opcode::JNZ:
             if (!zeroFlag) {
-                programCounter = static_cast<std::size_t>(instruction.immediate);
+                programCounter = static_cast<std::size_t>(currentInstruction.immediate);
             }
             break;
         case Opcode::HALT:
@@ -104,6 +112,6 @@ void CPU::execute(const Instruction& instruction) {
     }
 }
 
-void CPU::printState(const Instruction& instruction, std::size_t executedPc) const {
-    TracePrinter::printCycle(cycle, executedPc, instruction, registers, zeroFlag);
+void CPU::printState(std::size_t executedPc) const {
+    TracePrinter::printCycle(cycle, executedPc, currentInstruction, registers, zeroFlag);
 }
