@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "ALU.h"
 #include "Instruction.h"
 #include "Memory.h"
 #include "Registers.h"
@@ -19,11 +20,12 @@ public:
 private:
     void step();
     void execute(const Instruction& instruction);
-    void printTrace(const Instruction& instruction, std::size_t executedPc) const;
+    void printState(const Instruction& instruction, std::size_t executedPc) const;
 
-    Memory memory;
-    Registers registers;
     std::vector<Instruction> program;
+    Registers registers;
+    Memory memory;
+    ALU alu;
     std::size_t programCounter;
     std::size_t cycle;
     bool halted;
