@@ -1,5 +1,7 @@
 #include "Instruction.h"
 
+#include <sstream>
+
 Instruction::Instruction(
     Opcode opcode,
     int dst,
@@ -25,4 +27,43 @@ int Instruction::getSrc2() const {
 
 int Instruction::getImmediate() const {
     return immediate;
+}
+
+std::string Instruction::toString() const {
+    std::ostringstream output;
+
+    switch (opcode) {
+        case Opcode::MOV:
+            output << "MOV R" << dst << "," << immediate;
+            break;
+        case Opcode::ADD:
+            output << "ADD R" << dst << ",R" << src1 << ",R" << src2;
+            break;
+        case Opcode::SUB:
+            output << "SUB R" << dst << ",R" << src1 << ",R" << src2;
+            break;
+        case Opcode::LOAD:
+            output << "LOAD R" << dst << "," << immediate;
+            break;
+        case Opcode::STORE:
+            output << "STORE R" << src1 << "," << immediate;
+            break;
+        case Opcode::CMP:
+            output << "CMP R" << src1 << ",R" << src2;
+            break;
+        case Opcode::JMP:
+            output << "JMP " << immediate;
+            break;
+        case Opcode::JZ:
+            output << "JZ " << immediate;
+            break;
+        case Opcode::JNZ:
+            output << "JNZ " << immediate;
+            break;
+        case Opcode::HALT:
+            output << "HALT";
+            break;
+    }
+
+    return output.str();
 }

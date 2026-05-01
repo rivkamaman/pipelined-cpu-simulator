@@ -2,6 +2,18 @@
 
 #include "TracePrinter.h"
 
+#include <algorithm>
+#include <iomanip>
+#include <iostream>
+
+namespace {
+
+std::string stageOrEmptyMarker(const std::string& stage) {
+    return stage.empty() ? "-" : stage;
+}
+
+} // namespace
+
 CPU::CPU(std::size_t memorySize, std::size_t registerCount)
     : registers(registerCount),
       memory(memorySize),
@@ -18,12 +30,18 @@ void CPU::loadProgram(const std::vector<Instruction>& instructions) {
     cycle = 0;
     halted = false;
     zeroFlag = false;
+    traceHistory.clear();
+    pipelineFetchStage.clear();
+    pipelineDecodeStage.clear();
 }
 
 void CPU::run() {
     while (!halted) {
         step();
     }
+
+    flushPipelineTrace();
+    printPipelineTrace();
 }
 
 bool CPU::isHalted() const {
@@ -38,6 +56,50 @@ bool CPU::getZeroFlag() const {
     return zeroFlag;
 }
 
+void CPU::printPipelineTrace() const {
+    std::size_t cycleWidth = 5;
+    std::size_t fetchWidth = 5;
+    std::size_t decodeWidth = 6;
+    std::size_t executeWidth = 7;
+
+    for (std::size_t index = 0; index < traceHistory.size(); ++index) {
+        cycleWidth = std::max(cycleWidth, std::to_string(index).size());
+        fetchWidth = std::max(fetchWidth, traceHistory[index].fetch.size());
+        decodeWidth = std::max(decodeWidth, traceHistory[index].decode.size());
+        executeWidth = std::max(executeWidth, traceHistory[index].execute.size());
+    }
+
+    const std::size_t totalWidth =
+        cycleWidth + fetchWidth + decodeWidth + executeWidth + 9;
+
+    std::cout << std::left
+              << std::setw(static_cast<int>(cycleWidth)) << "Cycle"
+              << " | "
+              << std::setw(static_cast<int>(fetchWidth)) << "Fetch"
+              << " | "
+              << std::setw(static_cast<int>(decodeWidth)) << "Decode"
+              << " | "
+              << std::setw(static_cast<int>(executeWidth)) << "Execute"
+              << '\n';
+    std::cout << std::string(totalWidth, '-') << '\n';
+
+    for (std::size_t index = 0; index < traceHistory.size(); ++index) {
+        const PipelineTrace& trace = traceHistory[index];
+
+        std::cout << std::left
+                  << std::setw(static_cast<int>(cycleWidth)) << index
+                  << " | "
+                  << std::setw(static_cast<int>(fetchWidth)) << trace.fetch
+                  << " | "
+                  << std::setw(static_cast<int>(decodeWidth)) << trace.decode
+                  << " | "
+                  << std::setw(static_cast<int>(executeWidth)) << trace.execute
+                  << '\n';
+    }
+
+    std::cout << '\n';
+}
+
 void CPU::step() {
     // Running past the program acts like reaching HALT.
     if (programCounter >= program.size()) {
@@ -46,10 +108,23 @@ void CPU::step() {
     }
 
     const std::size_t executedPc = programCounter;
+    const std::string previousFetchStage = pipelineFetchStage;
+    const std::string previousDecodeStage = pipelineDecodeStage;
+    PipelineTrace trace;
 
     fetch();
+    trace.fetch = currentInstruction.toString();
+
     decode();
+    trace.decode = stageOrEmptyMarker(previousFetchStage);
+
     execute();
+    trace.execute = stageOrEmptyMarker(previousDecodeStage);
+
+    traceHistory.push_back(trace);
+    pipelineDecodeStage = previousFetchStage;
+    pipelineFetchStage = trace.fetch;
+
     ++cycle;
     printState(executedPc);
 }
@@ -147,4 +222,17 @@ void CPU::execute() {
 
 void CPU::printState(std::size_t executedPc) const {
     TracePrinter::printCycle(cycle, executedPc, currentInstruction, registers, zeroFlag);
+}
+
+void CPU::flushPipelineTrace() {
+    while (!pipelineFetchStage.empty() || !pipelineDecodeStage.empty()) {
+        PipelineTrace trace;
+        trace.fetch = "-";
+        trace.decode = stageOrEmptyMarker(pipelineFetchStage);
+        trace.execute = stageOrEmptyMarker(pipelineDecodeStage);
+
+        traceHistory.push_back(trace);
+        pipelineDecodeStage = pipelineFetchStage;
+        pipelineFetchStage.clear();
+    }
 }

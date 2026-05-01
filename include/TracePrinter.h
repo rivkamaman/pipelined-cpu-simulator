@@ -18,10 +18,6 @@ public:
         const Registers& registers,
         bool zeroFlag
     );
-
-private:
-    // Convert an instruction into the assembly-like text shown in traces.
-    static std::string instructionToString(const Instruction& instruction);
 };
 
 #endif

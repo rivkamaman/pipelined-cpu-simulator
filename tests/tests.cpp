@@ -6,7 +6,7 @@
 #include "Assembler.h"
 #include "CPU.h"
 
-void testAssemעםblerMovParsing() {
+void testAssemblerMovParsing() {
     const Instruction instruction = Assembler::parseLine("MOV R2 42");
 
     assert(instruction.opcode == Opcode::MOV);

@@ -1,6 +1,8 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
+#include <string>
+
 // Instruction operation codes supported by the simulator.
 enum class Opcode {
     MOV,
@@ -49,6 +51,9 @@ struct Instruction {
 
     // Return the immediate field used for constants, addresses, and targets.
     int getImmediate() const;
+
+    // Convert the instruction into readable assembly-like text.
+    std::string toString() const;
 };
 
 #endif

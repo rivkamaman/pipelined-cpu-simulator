@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "ALU.h"
@@ -10,6 +11,12 @@
 #include "Instruction.h"
 #include "Memory.h"
 #include "Registers.h"
+
+struct PipelineTrace {
+    std::string fetch;
+    std::string decode;
+    std::string execute;
+};
 
 // CPU ties together fetch, decode, execute, registers, memory, and the ALU.
 class CPU {
@@ -32,6 +39,9 @@ public:
     // Read the current zero flag for tests and diagnostics.
     bool getZeroFlag() const;
 
+    // Print the simulated fetch/decode/execute pipeline table.
+    void printPipelineTrace() const;
+
 private:
     // Execute one full fetch-decode-execute cycle.
     void step();
@@ -48,6 +58,9 @@ private:
     // Print the trace line for the instruction that just ran.
     void printState(std::size_t executedPc) const;
 
+    // Add final rows that drain the simulated pipeline view.
+    void flushPipelineTrace();
+
     // Instruction memory for this simple simulator.
     std::vector<Instruction> program;
 
@@ -61,6 +74,9 @@ private:
     Registers registers;
     Memory memory;
     ALU alu;
+    std::vector<PipelineTrace> traceHistory;
+    std::string pipelineFetchStage;
+    std::string pipelineDecodeStage;
     std::size_t programCounter;
     std::size_t cycle;
     bool halted;
