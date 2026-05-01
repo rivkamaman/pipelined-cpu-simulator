@@ -57,6 +57,12 @@ void testAssemblerBranchParsing() {
     assert(instruction.getImmediate() == 8);
 }
 
+void testAssemblerNopParsing() {
+    const Instruction instruction = Assembler::parseLine("NOP");
+
+    assert(instruction.opcode == Opcode::NOP);
+}
+
 void testAssemblerLabelBranchParsing() {
     const std::vector<std::string> lines = {
         "MOV R0 7",
@@ -298,6 +304,63 @@ void testOr() {
     assert(cpu.getRegisterValue(2) == 7);
 }
 
+void testPipelinedWithNopsAvoidsHazard() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 5",
+        "NOP",
+        "NOP",
+        "ADDI R1 R0 1",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(1) == 6);
+}
+
+void testPipelinedBranchTakenFlushesYoungerInstructions() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 1",
+        "NOP",
+        "NOP",
+        "CMP R0 R0",
+        "JZ target",
+        "MOV R1 99",
+        "target:",
+        "MOV R1 7",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(1) == 7);
+}
+
+void testPipelinedHaltDrainsPipeline() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 5",
+        "NOP",
+        "NOP",
+        "ADDI R1 R0 1",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.isHalted());
+    assert(cpu.getRegisterValue(0) == 5);
+    assert(cpu.getRegisterValue(1) == 6);
+}
+
 int main() {
     testAssemblerMovParsing();
     testAssemblerAddParsing();
@@ -305,6 +368,7 @@ int main() {
     testAssemblerAndParsing();
     testAssemblerOrParsing();
     testAssemblerBranchParsing();
+    testAssemblerNopParsing();
     testAssemblerLabelBranchParsing();
     testAssemblerAssembleLines();
     testAssemblerInvalidOpcodeThrows();
@@ -322,6 +386,9 @@ int main() {
     testAddi();
     testAnd();
     testOr();
+    testPipelinedWithNopsAvoidsHazard();
+    testPipelinedBranchTakenFlushesYoungerInstructions();
+    testPipelinedHaltDrainsPipeline();
 
     std::cout << "All tests passed successfully!" << std::endl;
     return 0;

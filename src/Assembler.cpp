@@ -227,6 +227,9 @@ Instruction parseTokens(
         case Opcode::JNZ:
             requireOperandCount(tokens, 2, tokens[0]);
             return Instruction(Opcode::JNZ, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
+        case Opcode::NOP:
+            requireOperandCount(tokens, 1, tokens[0]);
+            return Instruction(Opcode::NOP);
         case Opcode::HALT:
             requireOperandCount(tokens, 1, tokens[0]);
             return Instruction(Opcode::HALT);
@@ -326,6 +329,9 @@ Opcode Assembler::parseOpcode(const std::string& token) {
     }
     if (token == "JNZ") {
         return Opcode::JNZ;
+    }
+    if (token == "NOP") {
+        return Opcode::NOP;
     }
     if (token == "HALT") {
         return Opcode::HALT;

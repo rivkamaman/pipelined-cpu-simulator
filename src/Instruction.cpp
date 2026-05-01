@@ -70,6 +70,9 @@ std::string Instruction::toString() const {
         case Opcode::JNZ:
             output << "JNZ " << immediate;
             break;
+        case Opcode::NOP:
+            output << "NOP";
+            break;
         case Opcode::HALT:
             output << "HALT";
             break;
