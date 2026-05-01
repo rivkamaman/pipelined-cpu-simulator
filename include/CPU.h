@@ -16,6 +16,8 @@ struct PipelineTrace {
     std::string fetch;
     std::string decode;
     std::string execute;
+    std::string memory;
+    std::string writeBack;
 };
 
 struct IFID {
@@ -29,6 +31,23 @@ struct IDEX {
     std::size_t pc = 0;
     Instruction instruction;
     ControlSignals signals;
+};
+
+struct EXMEM {
+    bool valid = false;
+    std::size_t pc = 0;
+    Instruction instruction;
+    ControlSignals signals;
+    int aluResult = 0;
+    int storeData = 0;
+};
+
+struct MEMWB {
+    bool valid = false;
+    std::size_t pc = 0;
+    Instruction instruction;
+    ControlSignals signals;
+    int writeBackData = 0;
 };
 
 // CPU ties together fetch, decode, execute, registers, memory, and the ALU.
@@ -64,6 +83,21 @@ private:
 
     // Execute one real pipelined IF/ID/EX cycle.
     void stepPipelined();
+
+    // IF stage for pipelined mode.
+    IFID fetchStage();
+
+    // ID stage for pipelined mode.
+    IDEX decodeStage(const IFID& input);
+
+    // EX stage for pipelined mode.
+    EXMEM executeStage(const IDEX& input);
+
+    // MEM stage for pipelined mode.
+    MEMWB memoryStage(const EXMEM& input);
+
+    // WB stage for pipelined mode.
+    void writeBackStage(const MEMWB& input);
 
     // Copy the next program instruction into currentInstruction.
     void fetch();
@@ -105,10 +139,13 @@ private:
     std::string pipelineDecodeStage;
     IFID ifid;
     IDEX idex;
+    EXMEM exmem;
+    MEMWB memwb;
     std::size_t programCounter;
     std::size_t cycle;
     bool halted;
     bool fetchHalted;
+    bool pipelineFlushRequested;
     bool zeroFlag;
 };
 

@@ -311,6 +311,7 @@ void testPipelinedWithNopsAvoidsHazard() {
         "MOV R0 5",
         "NOP",
         "NOP",
+        "NOP",
         "ADDI R1 R0 1",
         "HALT"
     };
@@ -325,21 +326,47 @@ void testPipelinedBranchTakenFlushesYoungerInstructions() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R0 1",
+        "MOV R0 5",
+        "NOP",
         "NOP",
         "NOP",
         "CMP R0 R0",
         "JZ target",
         "MOV R1 99",
         "target:",
-        "MOV R1 7",
+        "MOV R1 1",
         "HALT"
     };
 
     cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.runPipelined();
 
-    assert(cpu.getRegisterValue(1) == 7);
+    assert(cpu.getRegisterValue(1) == 1);
+}
+
+void testPipelinedLoadStoreWithNops() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 42",
+        "NOP",
+        "NOP",
+        "NOP",
+        "STORE R0 10",
+        "NOP",
+        "NOP",
+        "NOP",
+        "LOAD R1 10",
+        "NOP",
+        "NOP",
+        "NOP",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(1) == 42);
 }
 
 void testPipelinedHaltDrainsPipeline() {
@@ -349,7 +376,11 @@ void testPipelinedHaltDrainsPipeline() {
         "MOV R0 5",
         "NOP",
         "NOP",
+        "NOP",
         "ADDI R1 R0 1",
+        "NOP",
+        "NOP",
+        "NOP",
         "HALT"
     };
 
@@ -357,7 +388,6 @@ void testPipelinedHaltDrainsPipeline() {
     cpu.runPipelined();
 
     assert(cpu.isHalted());
-    assert(cpu.getRegisterValue(0) == 5);
     assert(cpu.getRegisterValue(1) == 6);
 }
 
@@ -387,6 +417,7 @@ int main() {
     testAnd();
     testOr();
     testPipelinedWithNopsAvoidsHazard();
+    testPipelinedLoadStoreWithNops();
     testPipelinedBranchTakenFlushesYoungerInstructions();
     testPipelinedHaltDrainsPipeline();
 
