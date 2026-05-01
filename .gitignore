@@ -1,6 +1,9 @@
 build/
+build_tests/
 cpu_simulator
 *.o
 *.out
 *.exe
 .vscode/
+cpu_simulator
+cpu_tests

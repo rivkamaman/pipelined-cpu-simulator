@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
 
 namespace {
 
@@ -47,6 +48,160 @@ void requireOperandCount(
     }
 }
 
+bool hasLabelPrefix(const std::vector<std::string>& tokens) {
+    return !tokens.empty() && !tokens[0].empty() && tokens[0].back() == ':';
+}
+
+std::string parseLabelName(const std::string& token) {
+    const std::string label = token.substr(0, token.size() - 1);
+    if (label.empty()) {
+        throw std::invalid_argument("Invalid empty label");
+    }
+
+    if (Assembler::isNumber(label)) {
+        throw std::invalid_argument("Label cannot be numeric: " + label);
+    }
+
+    return label;
+}
+
+std::vector<std::string> stripLabelPrefix(const std::vector<std::string>& tokens) {
+    if (!hasLabelPrefix(tokens)) {
+        return tokens;
+    }
+
+    parseLabelName(tokens[0]);
+    return std::vector<std::string>(tokens.begin() + 1, tokens.end());
+}
+
+std::unordered_map<std::string, int> buildLabelMap(const std::vector<std::string>& lines) {
+    std::unordered_map<std::string, int> labelToIndex;
+    int instructionIndex = 0;
+
+    for (const std::string& line : lines) {
+        const std::vector<std::string> tokens = tokenize(line);
+        if (tokens.empty()) {
+            continue;
+        }
+
+        const std::vector<std::string> instructionTokens = stripLabelPrefix(tokens);
+
+        if (hasLabelPrefix(tokens)) {
+            const std::string label = parseLabelName(tokens[0]);
+            if (labelToIndex.count(label) > 0) {
+                throw std::invalid_argument("Duplicate label: " + label);
+            }
+
+            labelToIndex[label] = instructionIndex;
+        }
+
+        if (!instructionTokens.empty()) {
+            ++instructionIndex;
+        }
+    }
+
+    return labelToIndex;
+}
+
+int parseTarget(
+    const std::string& token,
+    const std::unordered_map<std::string, int>& labelToIndex
+) {
+    if (Assembler::isNumber(token)) {
+        return parseInteger(token, "target");
+    }
+
+    const auto label = labelToIndex.find(token);
+    if (label == labelToIndex.end()) {
+        throw std::invalid_argument("Unknown label: " + token);
+    }
+
+    return label->second;
+}
+
+Instruction parseTokens(
+    const std::vector<std::string>& sourceTokens,
+    const std::unordered_map<std::string, int>& labelToIndex
+) {
+    const std::vector<std::string> tokens = stripLabelPrefix(sourceTokens);
+    if (tokens.empty()) {
+        throw std::invalid_argument("Cannot parse a label-only assembly line");
+    }
+
+    const Opcode opcode = Assembler::parseOpcode(tokens[0]);
+
+    switch (opcode) {
+        case Opcode::MOV:
+            requireOperandCount(tokens, 3, tokens[0]);
+            return Instruction(
+                Opcode::MOV,
+                Assembler::parseRegister(tokens[1]),
+                0,
+                0,
+                parseInteger(tokens[2], "immediate")
+            );
+        case Opcode::ADD:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::ADD,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                Assembler::parseRegister(tokens[3]),
+                0
+            );
+        case Opcode::SUB:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::SUB,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                Assembler::parseRegister(tokens[3]),
+                0
+            );
+        case Opcode::CMP:
+            requireOperandCount(tokens, 3, tokens[0]);
+            return Instruction(
+                Opcode::CMP,
+                0,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                0
+            );
+        case Opcode::LOAD:
+            requireOperandCount(tokens, 3, tokens[0]);
+            return Instruction(
+                Opcode::LOAD,
+                Assembler::parseRegister(tokens[1]),
+                0,
+                0,
+                parseInteger(tokens[2], "address")
+            );
+        case Opcode::STORE:
+            requireOperandCount(tokens, 3, tokens[0]);
+            return Instruction(
+                Opcode::STORE,
+                0,
+                Assembler::parseRegister(tokens[1]),
+                0,
+                parseInteger(tokens[2], "address")
+            );
+        case Opcode::JMP:
+            requireOperandCount(tokens, 2, tokens[0]);
+            return Instruction(Opcode::JMP, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
+        case Opcode::JZ:
+            requireOperandCount(tokens, 2, tokens[0]);
+            return Instruction(Opcode::JZ, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
+        case Opcode::JNZ:
+            requireOperandCount(tokens, 2, tokens[0]);
+            return Instruction(Opcode::JNZ, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
+        case Opcode::HALT:
+            requireOperandCount(tokens, 1, tokens[0]);
+            return Instruction(Opcode::HALT);
+    }
+
+    throw std::invalid_argument("Unsupported opcode");
+}
+
 } // namespace
 
 std::vector<Instruction> Assembler::assembleFile(const std::string& filename) {
@@ -67,96 +222,38 @@ std::vector<Instruction> Assembler::assembleFile(const std::string& filename) {
 
 std::vector<Instruction> Assembler::assembleLines(const std::vector<std::string>& lines) {
     std::vector<Instruction> program;
+    const std::unordered_map<std::string, int> labelToIndex = buildLabelMap(lines);
 
     for (const std::string& line : lines) {
-        if (tokenize(line).empty()) {
+        const std::vector<std::string> tokens = tokenize(line);
+        if (tokens.empty()) {
             continue;
         }
 
-        program.push_back(parseLine(line));
+        if (stripLabelPrefix(tokens).empty()) {
+            continue;
+        }
+
+        program.push_back(parseTokens(tokens, labelToIndex));
     }
 
     return program;
 }
 
 Instruction Assembler::parseLine(const std::string& line) {
+    return parseLine(line, {});
+}
+
+Instruction Assembler::parseLine(
+    const std::string& line,
+    const std::unordered_map<std::string, int>& labelToIndex
+) {
     const std::vector<std::string> tokens = tokenize(line);
     if (tokens.empty()) {
         throw std::invalid_argument("Cannot parse an empty assembly line");
     }
 
-    const Opcode opcode = parseOpcode(tokens[0]);
-
-    switch (opcode) {
-        case Opcode::MOV:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::MOV,
-                parseRegister(tokens[1]),
-                0,
-                0,
-                parseInteger(tokens[2], "immediate")
-            );
-        case Opcode::ADD:
-            requireOperandCount(tokens, 4, tokens[0]);
-            return Instruction(
-                Opcode::ADD,
-                parseRegister(tokens[1]),
-                parseRegister(tokens[2]),
-                parseRegister(tokens[3]),
-                0
-            );
-        case Opcode::SUB:
-            requireOperandCount(tokens, 4, tokens[0]);
-            return Instruction(
-                Opcode::SUB,
-                parseRegister(tokens[1]),
-                parseRegister(tokens[2]),
-                parseRegister(tokens[3]),
-                0
-            );
-        case Opcode::CMP:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::CMP,
-                0,
-                parseRegister(tokens[1]),
-                parseRegister(tokens[2]),
-                0
-            );
-        case Opcode::LOAD:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::LOAD,
-                parseRegister(tokens[1]),
-                0,
-                0,
-                parseInteger(tokens[2], "address")
-            );
-        case Opcode::STORE:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::STORE,
-                0,
-                parseRegister(tokens[1]),
-                0,
-                parseInteger(tokens[2], "address")
-            );
-        case Opcode::JMP:
-            requireOperandCount(tokens, 2, tokens[0]);
-            return Instruction(Opcode::JMP, 0, 0, 0, parseInteger(tokens[1], "target"));
-        case Opcode::JZ:
-            requireOperandCount(tokens, 2, tokens[0]);
-            return Instruction(Opcode::JZ, 0, 0, 0, parseInteger(tokens[1], "target"));
-        case Opcode::JNZ:
-            requireOperandCount(tokens, 2, tokens[0]);
-            return Instruction(Opcode::JNZ, 0, 0, 0, parseInteger(tokens[1], "target"));
-        case Opcode::HALT:
-            requireOperandCount(tokens, 1, tokens[0]);
-            return Instruction(Opcode::HALT);
-    }
-
-    throw std::invalid_argument("Unsupported opcode");
+    return parseTokens(tokens, labelToIndex);
 }
 
 Opcode Assembler::parseOpcode(const std::string& token) {
@@ -206,4 +303,27 @@ int Assembler::parseRegister(const std::string& token) {
     }
 
     return parseInteger(token.substr(1), "register");
+}
+
+bool Assembler::isNumber(const std::string& token) {
+    if (token.empty()) {
+        return false;
+    }
+
+    std::size_t index = 0;
+    if (token[0] == '-' || token[0] == '+') {
+        if (token.size() == 1) {
+            return false;
+        }
+
+        index = 1;
+    }
+
+    for (; index < token.size(); ++index) {
+        if (!std::isdigit(static_cast<unsigned char>(token[index]))) {
+            return false;
+        }
+    }
+
+    return true;
 }

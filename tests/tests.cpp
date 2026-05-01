@@ -30,6 +30,22 @@ void testAssemblerBranchParsing() {
     assert(instruction.getImmediate() == 8);
 }
 
+void testAssemblerLabelBranchParsing() {
+    const std::vector<std::string> lines = {
+        "MOV R0 7",
+        "JZ done",
+        "MOV R1 -1",
+        "done:",
+        "HALT"
+    };
+
+    const std::vector<Instruction> program = Assembler::assembleLines(lines);
+
+    assert(program.size() == 4);
+    assert(program[1].opcode == Opcode::JZ);
+    assert(program[1].getImmediate() == 3);
+}
+
 void testAssemblerAssembleLines() {
     const std::vector<std::string> lines = {
         "MOV R0 5",
@@ -99,6 +115,39 @@ void testAssemblerLoadStoreFileRunsOnCpu() {
 
     assert(cpu.getRegisterValue(0) == 42);
     assert(cpu.getRegisterValue(1) == 42);
+}
+
+void testAssemblerLabelsFileRunsOnCpu() {
+    CPU cpu;
+
+    cpu.loadProgram(Assembler::assembleFile("tests/labels.asm"));
+    cpu.run();
+
+    assert(cpu.getRegisterValue(2) == 42);
+}
+
+void testAssemblerUnknownLabelThrows() {
+    bool threw = false;
+
+    try {
+        Assembler::assembleLines({"JMP missing", "HALT"});
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+
+    assert(threw);
+}
+
+void testAssemblerDuplicateLabelThrows() {
+    bool threw = false;
+
+    try {
+        Assembler::assembleLines({"again:", "MOV R0 1", "again:", "HALT"});
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+
+    assert(threw);
 }
 
 void testAddSub() {
@@ -179,11 +228,15 @@ int main() {
     testAssemblerMovParsing();
     testAssemblerAddParsing();
     testAssemblerBranchParsing();
+    testAssemblerLabelBranchParsing();
     testAssemblerAssembleLines();
     testAssemblerInvalidOpcodeThrows();
     testAssemblerProgramRunsOnCpu();
     testAssemblerAddSubFileRunsOnCpu();
     testAssemblerLoadStoreFileRunsOnCpu();
+    testAssemblerLabelsFileRunsOnCpu();
+    testAssemblerUnknownLabelThrows();
+    testAssemblerDuplicateLabelThrows();
 
     testAddSub();
     testJZBranchTaken();
