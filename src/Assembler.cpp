@@ -9,6 +9,7 @@
 namespace {
 
 std::vector<std::string> tokenize(const std::string& line) {
+    // Ignore everything after '#', then split the remaining source on whitespace.
     const std::size_t commentStart = line.find('#');
     const std::string source = line.substr(0, commentStart);
 
@@ -28,6 +29,7 @@ int parseInteger(const std::string& token, const std::string& fieldName) {
         std::size_t parsedChars = 0;
         const int value = std::stoi(token, &parsedChars);
 
+        // std::stoi accepts prefixes, so reject tokens like "12abc".
         if (parsedChars != token.size()) {
             throw std::invalid_argument("Trailing characters");
         }
@@ -49,6 +51,7 @@ void requireOperandCount(
 }
 
 bool hasLabelPrefix(const std::vector<std::string>& tokens) {
+    // Labels are written as the first token followed by a colon, e.g. "loop:".
     return !tokens.empty() && !tokens[0].empty() && tokens[0].back() == ':';
 }
 
@@ -78,6 +81,7 @@ std::unordered_map<std::string, int> buildLabelMap(const std::vector<std::string
     std::unordered_map<std::string, int> labelToIndex;
     int instructionIndex = 0;
 
+    // First pass: map each label to the instruction index it points at.
     for (const std::string& line : lines) {
         const std::vector<std::string> tokens = tokenize(line);
         if (tokens.empty()) {
@@ -107,6 +111,7 @@ int parseTarget(
     const std::string& token,
     const std::unordered_map<std::string, int>& labelToIndex
 ) {
+    // Branches and jumps may target either a numeric instruction index or a label.
     if (Assembler::isNumber(token)) {
         return parseInteger(token, "target");
     }
@@ -123,6 +128,7 @@ Instruction parseTokens(
     const std::vector<std::string>& sourceTokens,
     const std::unordered_map<std::string, int>& labelToIndex
 ) {
+    // Parse the instruction portion after any optional leading label.
     const std::vector<std::string> tokens = stripLabelPrefix(sourceTokens);
     if (tokens.empty()) {
         throw std::invalid_argument("Cannot parse a label-only assembly line");
@@ -224,6 +230,7 @@ std::vector<Instruction> Assembler::assembleLines(const std::vector<std::string>
     std::vector<Instruction> program;
     const std::unordered_map<std::string, int> labelToIndex = buildLabelMap(lines);
 
+    // Second pass: convert every real instruction into executable form.
     for (const std::string& line : lines) {
         const std::vector<std::string> tokens = tokenize(line);
         if (tokens.empty()) {
@@ -310,6 +317,7 @@ bool Assembler::isNumber(const std::string& token) {
         return false;
     }
 
+    // Accept an optional sign before the decimal digits.
     std::size_t index = 0;
     if (token[0] == '-' || token[0] == '+') {
         if (token.size() == 1) {

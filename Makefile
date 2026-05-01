@@ -1,15 +1,19 @@
 CXX := g++
 CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic -MMD -MP -Iinclude
 
+# Main executable and test binary names.
 TARGET := cpu_simulator
 TEST_TARGET := cpu_tests
 
+# Keep normal and test build outputs separate.
 BUILD_DIR := build
 TEST_BUILD_DIR := build_tests
 
+# Production sources include main.cpp; tests link every simulator source except main.
 SRC := $(wildcard src/*.cpp)
 TEST_SRC := $(filter-out src/main.cpp,$(SRC)) tests/tests.cpp
 
+# Object and dependency files generated from the source lists above.
 OBJ := $(patsubst src/%.cpp,$(BUILD_DIR)/%.o,$(SRC))
 TEST_OBJ := $(patsubst src/%.cpp,$(TEST_BUILD_DIR)/%.o,$(filter-out src/main.cpp,$(SRC)))
 TEST_OBJ += $(TEST_BUILD_DIR)/tests.o
@@ -51,5 +55,6 @@ test: $(TEST_TARGET)
 clean:
 	rm -rf $(BUILD_DIR) $(TEST_BUILD_DIR) $(TARGET) $(TEST_TARGET)
 
+# Include compiler-generated header dependencies when they exist.
 -include $(DEP)
 -include $(TEST_DEP)

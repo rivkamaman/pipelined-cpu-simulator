@@ -57,6 +57,7 @@ bool CPU::getZeroFlag() const {
 }
 
 void CPU::printPipelineTrace() const {
+    // Start with header widths, then widen each column to fit trace contents.
     std::size_t cycleWidth = 5;
     std::size_t fetchWidth = 5;
     std::size_t decodeWidth = 6;
@@ -108,6 +109,7 @@ void CPU::step() {
     }
 
     const std::size_t executedPc = programCounter;
+    // Keep the previous cycle's stage names so the trace can show pipeline flow.
     const std::string previousFetchStage = pipelineFetchStage;
     const std::string previousDecodeStage = pipelineDecodeStage;
     PipelineTrace trace;
@@ -173,6 +175,7 @@ void CPU::execute() {
     }
 
     if (currentSignals.isBranch) {
+        // Conditional branches update the PC only when the zero flag matches.
         if (currentSignals.branchType == BranchType::JZ && zeroFlag) {
             programCounter = static_cast<std::size_t>(immediate);
         }
@@ -225,6 +228,7 @@ void CPU::printState(std::size_t executedPc) const {
 }
 
 void CPU::flushPipelineTrace() {
+    // After HALT, add cycles for instructions already shown in fetch/decode.
     while (!pipelineFetchStage.empty() || !pipelineDecodeStage.empty()) {
         PipelineTrace trace;
         trace.fetch = "-";

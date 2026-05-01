@@ -32,6 +32,7 @@ int Instruction::getImmediate() const {
 std::string Instruction::toString() const {
     std::ostringstream output;
 
+    // Recreate readable assembly text for execution and pipeline traces.
     switch (opcode) {
         case Opcode::MOV:
             output << "MOV R" << dst << "," << immediate;
