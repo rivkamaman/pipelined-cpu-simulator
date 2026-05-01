@@ -10,11 +10,13 @@ void TracePrinter::printCycle(
     const Registers& registers,
     bool zeroFlag
 ) {
+    // Print the cycle header and decoded instruction text.
     std::cout << "Cycle " << cycle
               << " | PC=" << pc
               << " | " << instructionToString(instruction)
               << '\n';
 
+    // Print every register so state changes are visible cycle by cycle.
     for (std::size_t index = 0; index < registers.count(); ++index) {
         std::cout << "R" << index << "=" << registers.read(index);
         if (index + 1 < registers.count()) {
@@ -28,6 +30,7 @@ void TracePrinter::printCycle(
 std::string TracePrinter::instructionToString(const Instruction& instruction) {
     std::ostringstream output;
 
+    // Trace formatting is presentation-only; execution logic lives elsewhere.
     switch (instruction.opcode) {
         case Opcode::MOV:
             output << "MOV R" << instruction.dst << ", " << instruction.immediate;

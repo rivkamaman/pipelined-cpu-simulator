@@ -4,8 +4,11 @@
 #include "CPU.h"
 
 int main() {
+    // Create a CPU with the default memory and register sizes.
     CPU cpu;
 
+    // Sample program that exercises arithmetic, comparison, branching, memory,
+    // and halt behavior.
     const std::vector<Instruction> program = {
         Instruction(Opcode::MOV, 0, 0, 0, 7),
         Instruction(Opcode::MOV, 1, 0, 0, 3),
@@ -20,6 +23,7 @@ int main() {
         Instruction(Opcode::HALT)
     };
 
+    // Load and run the sample program, printing a trace after each instruction.
     cpu.loadProgram(program);
     cpu.run();
 

@@ -7,8 +7,10 @@
 #include "Instruction.h"
 #include "Registers.h"
 
+// Formats and prints the simulator trace after each CPU cycle.
 class TracePrinter {
 public:
+    // Print one cycle, including PC, instruction text, registers, and zero flag.
     static void printCycle(
         std::size_t cycle,
         std::size_t pc,
@@ -18,6 +20,7 @@ public:
     );
 
 private:
+    // Convert an instruction into the assembly-like text shown in traces.
     static std::string instructionToString(const Instruction& instruction);
 };
 

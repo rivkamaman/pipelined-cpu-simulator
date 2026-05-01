@@ -3,6 +3,7 @@
 ControlSignals ControlUnit::decode(const Instruction& instruction) {
     ControlSignals signals;
 
+    // Decode is the only opcode-dependent stage in the CPU.
     switch (instruction.opcode) {
         case Opcode::MOV:
             signals.regWrite = true;
