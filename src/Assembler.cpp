@@ -155,10 +155,37 @@ Instruction parseTokens(
                 Assembler::parseRegister(tokens[3]),
                 0
             );
+        case Opcode::ADDI:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::ADDI,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                0,
+                parseInteger(tokens[3], "immediate")
+            );
         case Opcode::SUB:
             requireOperandCount(tokens, 4, tokens[0]);
             return Instruction(
                 Opcode::SUB,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                Assembler::parseRegister(tokens[3]),
+                0
+            );
+        case Opcode::AND:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::AND,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                Assembler::parseRegister(tokens[3]),
+                0
+            );
+        case Opcode::OR:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::OR,
                 Assembler::parseRegister(tokens[1]),
                 Assembler::parseRegister(tokens[2]),
                 Assembler::parseRegister(tokens[3]),
@@ -270,8 +297,17 @@ Opcode Assembler::parseOpcode(const std::string& token) {
     if (token == "ADD") {
         return Opcode::ADD;
     }
+    if (token == "ADDI") {
+        return Opcode::ADDI;
+    }
     if (token == "SUB") {
         return Opcode::SUB;
+    }
+    if (token == "AND") {
+        return Opcode::AND;
+    }
+    if (token == "OR") {
+        return Opcode::OR;
     }
     if (token == "LOAD") {
         return Opcode::LOAD;

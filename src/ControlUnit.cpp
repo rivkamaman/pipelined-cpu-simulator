@@ -12,9 +12,21 @@ ControlSignals ControlUnit::decode(const Instruction& instruction) {
             signals.regWrite = true;
             signals.aluOp = ALUOp::ADD;
             break;
+        case Opcode::ADDI:
+            signals.regWrite = true;
+            signals.aluOp = ALUOp::ADDI;
+            break;
         case Opcode::SUB:
             signals.regWrite = true;
             signals.aluOp = ALUOp::SUB;
+            break;
+        case Opcode::AND:
+            signals.regWrite = true;
+            signals.aluOp = ALUOp::AND;
+            break;
+        case Opcode::OR:
+            signals.regWrite = true;
+            signals.aluOp = ALUOp::OR;
             break;
         case Opcode::LOAD:
             signals.memRead = true;

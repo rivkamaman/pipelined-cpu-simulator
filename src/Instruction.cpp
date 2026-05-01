@@ -40,8 +40,17 @@ std::string Instruction::toString() const {
         case Opcode::ADD:
             output << "ADD R" << dst << ",R" << src1 << ",R" << src2;
             break;
+        case Opcode::ADDI:
+            output << "ADDI R" << dst << ",R" << src1 << "," << immediate;
+            break;
         case Opcode::SUB:
             output << "SUB R" << dst << ",R" << src1 << ",R" << src2;
+            break;
+        case Opcode::AND:
+            output << "AND R" << dst << ",R" << src1 << ",R" << src2;
+            break;
+        case Opcode::OR:
+            output << "OR R" << dst << ",R" << src1 << ",R" << src2;
             break;
         case Opcode::LOAD:
             output << "LOAD R" << dst << "," << immediate;

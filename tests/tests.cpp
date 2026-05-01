@@ -23,6 +23,33 @@ void testAssemblerAddParsing() {
     assert(instruction.getSrc2() == 1);
 }
 
+void testAssemblerAddiParsing() {
+    const Instruction instruction = Assembler::parseLine("ADDI R2 R0 5");
+
+    assert(instruction.opcode == Opcode::ADDI);
+    assert(instruction.dst == 2);
+    assert(instruction.getSrc1() == 0);
+    assert(instruction.getImmediate() == 5);
+}
+
+void testAssemblerAndParsing() {
+    const Instruction instruction = Assembler::parseLine("AND R3 R0 R1");
+
+    assert(instruction.opcode == Opcode::AND);
+    assert(instruction.dst == 3);
+    assert(instruction.getSrc1() == 0);
+    assert(instruction.getSrc2() == 1);
+}
+
+void testAssemblerOrParsing() {
+    const Instruction instruction = Assembler::parseLine("OR R4 R0 R1");
+
+    assert(instruction.opcode == Opcode::OR);
+    assert(instruction.dst == 4);
+    assert(instruction.getSrc1() == 0);
+    assert(instruction.getSrc2() == 1);
+}
+
 void testAssemblerBranchParsing() {
     const Instruction instruction = Assembler::parseLine("JZ 8");
 
@@ -224,9 +251,59 @@ void testLoadStore() {
     assert(cpu.getRegisterValue(1) == 42);
 }
 
+void testAddi() {
+    CPU cpu;
+
+    std::vector<Instruction> program = {
+        {Opcode::MOV, 0, 0, 0, 10},
+        {Opcode::ADDI, 1, 0, 0, 5},
+        {Opcode::HALT, 0, 0, 0, 0}
+    };
+
+    cpu.loadProgram(program);
+    cpu.run();
+
+    assert(cpu.getRegisterValue(1) == 15);
+}
+
+void testAnd() {
+    CPU cpu;
+
+    std::vector<Instruction> program = {
+        {Opcode::MOV, 0, 0, 0, 6},
+        {Opcode::MOV, 1, 0, 0, 3},
+        {Opcode::AND, 2, 0, 1, 0},
+        {Opcode::HALT, 0, 0, 0, 0}
+    };
+
+    cpu.loadProgram(program);
+    cpu.run();
+
+    assert(cpu.getRegisterValue(2) == 2);
+}
+
+void testOr() {
+    CPU cpu;
+
+    std::vector<Instruction> program = {
+        {Opcode::MOV, 0, 0, 0, 6},
+        {Opcode::MOV, 1, 0, 0, 3},
+        {Opcode::OR, 2, 0, 1, 0},
+        {Opcode::HALT, 0, 0, 0, 0}
+    };
+
+    cpu.loadProgram(program);
+    cpu.run();
+
+    assert(cpu.getRegisterValue(2) == 7);
+}
+
 int main() {
     testAssemblerMovParsing();
     testAssemblerAddParsing();
+    testAssemblerAddiParsing();
+    testAssemblerAndParsing();
+    testAssemblerOrParsing();
     testAssemblerBranchParsing();
     testAssemblerLabelBranchParsing();
     testAssemblerAssembleLines();
@@ -242,6 +319,9 @@ int main() {
     testJZBranchTaken();
     testJNZBranchTaken();
     testLoadStore();
+    testAddi();
+    testAnd();
+    testOr();
 
     std::cout << "All tests passed successfully!" << std::endl;
     return 0;

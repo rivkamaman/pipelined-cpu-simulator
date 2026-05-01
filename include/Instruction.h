@@ -7,7 +7,10 @@
 enum class Opcode {
     MOV,
     ADD,
+    ADDI,
     SUB,
+    AND,
+    OR,
     LOAD,
     STORE,
     CMP,

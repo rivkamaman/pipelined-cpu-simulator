@@ -7,7 +7,10 @@
 enum class ALUOp {
     NONE,
     ADD,
+    ADDI,
     SUB,
+    AND,
+    OR,
     CMP
 };
 

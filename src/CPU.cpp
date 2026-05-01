@@ -202,8 +202,26 @@ void CPU::execute() {
                 registers.read(src2)
             );
             break;
+        case ALUOp::ADDI:
+            result = alu.addImmediate(
+                registers.read(src1),
+                immediate
+            );
+            break;
         case ALUOp::SUB:
             result = alu.sub(
+                registers.read(src1),
+                registers.read(src2)
+            );
+            break;
+        case ALUOp::AND:
+            result = alu.bitwiseAnd(
+                registers.read(src1),
+                registers.read(src2)
+            );
+            break;
+        case ALUOp::OR:
+            result = alu.bitwiseOr(
                 registers.read(src1),
                 registers.read(src2)
             );
