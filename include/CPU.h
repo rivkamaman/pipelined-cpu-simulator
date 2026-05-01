@@ -2,6 +2,7 @@
 #define CPU_H
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "ALU.h"
@@ -24,6 +25,12 @@ public:
 
     // Report whether the CPU has stopped.
     bool isHalted() const;
+
+    // Read a register value for tests and diagnostics.
+    std::int32_t getRegisterValue(std::size_t index) const;
+
+    // Read the current zero flag for tests and diagnostics.
+    bool getZeroFlag() const;
 
 private:
     // Execute one full fetch-decode-execute cycle.

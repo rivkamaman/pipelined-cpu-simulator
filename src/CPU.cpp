@@ -30,6 +30,14 @@ bool CPU::isHalted() const {
     return halted;
 }
 
+std::int32_t CPU::getRegisterValue(std::size_t index) const {
+    return registers.read(index);
+}
+
+bool CPU::getZeroFlag() const {
+    return zeroFlag;
+}
+
 void CPU::step() {
     // Running past the program acts like reaching HALT.
     if (programCounter >= program.size()) {

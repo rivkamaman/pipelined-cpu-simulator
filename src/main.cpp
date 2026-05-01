@@ -1,27 +1,14 @@
 #include <iostream>
-#include <vector>
 
+#include "Assembler.h"
 #include "CPU.h"
 
 int main() {
     // Create a CPU with the default memory and register sizes.
     CPU cpu;
 
-    // Sample program that exercises arithmetic, comparison, branching, memory,
-    // and halt behavior.
-    const std::vector<Instruction> program = {
-        Instruction(Opcode::MOV, 0, 0, 0, 7),
-        Instruction(Opcode::MOV, 1, 0, 0, 3),
-        Instruction(Opcode::ADD, 2, 0, 1),
-        Instruction(Opcode::MOV, 3, 0, 0, 8),
-        Instruction(Opcode::CMP, 0, 2, 3),
-        Instruction(Opcode::JZ, 0, 0, 0, 8),
-        Instruction(Opcode::MOV, 4, 0, 0, -1),
-        Instruction(Opcode::JMP, 0, 0, 0, 9),
-        Instruction(Opcode::STORE, 0, 2, 0, 10),
-        Instruction(Opcode::LOAD, 5, 0, 0, 10),
-        Instruction(Opcode::HALT)
-    };
+    // Assemble the text program into Instruction objects for the CPU.
+    const auto program = Assembler::assembleFile("program.asm");
 
     // Load and run the sample program, printing a trace after each instruction.
     cpu.loadProgram(program);
