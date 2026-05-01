@@ -7,7 +7,7 @@ int main() {
     CPU cpu;
 
     const std::vector<Instruction> program = {
-        Instruction(Opcode::MOV, 0, 0, 0, 5),
+        Instruction(Opcode::MOV, 0, 0, 0, 7),
         Instruction(Opcode::MOV, 1, 0, 0, 3),
         Instruction(Opcode::ADD, 2, 0, 1),
         Instruction(Opcode::MOV, 3, 0, 0, 8),

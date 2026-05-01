@@ -50,65 +50,79 @@ void CPU::fetch() {
 }
 
 void CPU::decode() {
+    currentSignals = ControlUnit::decode(currentInstruction);
 }
 
 void CPU::execute() {
-    switch (currentInstruction.opcode) {
-        case Opcode::MOV:
-            registers.write(static_cast<std::size_t>(currentInstruction.dst), currentInstruction.immediate);
-            break;
-        case Opcode::ADD:
-            registers.write(
-                static_cast<std::size_t>(currentInstruction.dst),
-                alu.add(
-                    registers.read(static_cast<std::size_t>(currentInstruction.src1)),
-                    registers.read(static_cast<std::size_t>(currentInstruction.src2))
-                )
+    if (currentSignals.halt) {
+        halted = true;
+        return;
+    }
+
+    if (currentSignals.memRead) {
+        registers.write(
+            static_cast<std::size_t>(currentInstruction.dst),
+            memory.read(static_cast<std::size_t>(currentInstruction.immediate))
+        );
+        return;
+    }
+
+    if (currentSignals.memWrite) {
+        memory.write(
+            static_cast<std::size_t>(currentInstruction.immediate),
+            registers.read(static_cast<std::size_t>(currentInstruction.src1))
+        );
+        return;
+    }
+
+    if (currentSignals.isJump) {
+        programCounter = static_cast<std::size_t>(currentInstruction.immediate);
+        return;
+    }
+
+    if (currentSignals.isBranch) {
+        if (currentSignals.branchType == BranchType::JZ && zeroFlag) {
+            programCounter = static_cast<std::size_t>(currentInstruction.immediate);
+        }
+
+        if (currentSignals.branchType == BranchType::JNZ && !zeroFlag) {
+            programCounter = static_cast<std::size_t>(currentInstruction.immediate);
+        }
+
+        return;
+    }
+
+    if (currentSignals.aluOp == ALUOp::NONE && !currentSignals.regWrite) {
+        return;
+    }
+
+    int result = currentInstruction.immediate;
+
+    switch (currentSignals.aluOp) {
+        case ALUOp::ADD:
+            result = alu.add(
+                registers.read(static_cast<std::size_t>(currentInstruction.src1)),
+                registers.read(static_cast<std::size_t>(currentInstruction.src2))
             );
             break;
-        case Opcode::SUB:
-            registers.write(
-                static_cast<std::size_t>(currentInstruction.dst),
-                alu.sub(
-                    registers.read(static_cast<std::size_t>(currentInstruction.src1)),
-                    registers.read(static_cast<std::size_t>(currentInstruction.src2))
-                )
+        case ALUOp::SUB:
+            result = alu.sub(
+                registers.read(static_cast<std::size_t>(currentInstruction.src1)),
+                registers.read(static_cast<std::size_t>(currentInstruction.src2))
             );
             break;
-        case Opcode::LOAD:
-            registers.write(
-                static_cast<std::size_t>(currentInstruction.dst),
-                memory.read(static_cast<std::size_t>(currentInstruction.immediate))
-            );
-            break;
-        case Opcode::STORE:
-            memory.write(
-                static_cast<std::size_t>(currentInstruction.immediate),
-                registers.read(static_cast<std::size_t>(currentInstruction.src1))
-            );
-            break;
-        case Opcode::CMP:
+        case ALUOp::CMP:
             zeroFlag = alu.equal(
                 registers.read(static_cast<std::size_t>(currentInstruction.src1)),
                 registers.read(static_cast<std::size_t>(currentInstruction.src2))
             );
             break;
-        case Opcode::JMP:
-            programCounter = static_cast<std::size_t>(currentInstruction.immediate);
+        case ALUOp::NONE:
             break;
-        case Opcode::JZ:
-            if (zeroFlag) {
-                programCounter = static_cast<std::size_t>(currentInstruction.immediate);
-            }
-            break;
-        case Opcode::JNZ:
-            if (!zeroFlag) {
-                programCounter = static_cast<std::size_t>(currentInstruction.immediate);
-            }
-            break;
-        case Opcode::HALT:
-            halted = true;
-            break;
+    }
+
+    if (currentSignals.regWrite) {
+        registers.write(static_cast<std::size_t>(currentInstruction.dst), result);
     }
 }
 

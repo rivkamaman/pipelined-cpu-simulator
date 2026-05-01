@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "ALU.h"
+#include "ControlUnit.h"
 #include "Instruction.h"
 #include "Memory.h"
 #include "Registers.h"
@@ -26,6 +27,7 @@ private:
 
     std::vector<Instruction> program;
     Instruction currentInstruction;
+    ControlSignals currentSignals;
     Registers registers;
     Memory memory;
     ALU alu;
