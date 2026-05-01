@@ -20,6 +20,7 @@ CPU::CPU(std::size_t memorySize, std::size_t registerCount)
       programCounter(0),
       cycle(0),
       halted(false),
+      fetchHalted(false),
       zeroFlag(false) {
 }
 
@@ -29,10 +30,13 @@ void CPU::loadProgram(const std::vector<Instruction>& instructions) {
     programCounter = 0;
     cycle = 0;
     halted = false;
+    fetchHalted = false;
     zeroFlag = false;
     traceHistory.clear();
     pipelineFetchStage.clear();
     pipelineDecodeStage.clear();
+    ifid = IFID{};
+    idex = IDEX{};
 }
 
 void CPU::run() {
@@ -41,6 +45,14 @@ void CPU::run() {
     }
 
     flushPipelineTrace();
+    printPipelineTrace();
+}
+
+void CPU::runPipelined() {
+    while (!halted || ifid.valid || idex.valid) {
+        stepPipelined();
+    }
+
     printPipelineTrace();
 }
 
@@ -76,11 +88,11 @@ void CPU::printPipelineTrace() const {
     std::cout << std::left
               << std::setw(static_cast<int>(cycleWidth)) << "Cycle"
               << " | "
-              << std::setw(static_cast<int>(fetchWidth)) << "Fetch"
+              << std::setw(static_cast<int>(fetchWidth)) << "IF"
               << " | "
-              << std::setw(static_cast<int>(decodeWidth)) << "Decode"
+              << std::setw(static_cast<int>(decodeWidth)) << "ID"
               << " | "
-              << std::setw(static_cast<int>(executeWidth)) << "Execute"
+              << std::setw(static_cast<int>(executeWidth)) << "EX"
               << '\n';
     std::cout << std::string(totalWidth, '-') << '\n';
 
@@ -143,25 +155,99 @@ void CPU::decode() {
 }
 
 void CPU::execute() {
-    // From here down, execution follows control signals instead of opcodes.
-    const std::size_t src1 = static_cast<std::size_t>(currentInstruction.getSrc1());
-    const std::size_t src2 = static_cast<std::size_t>(currentInstruction.getSrc2());
-    const int immediate = currentInstruction.getImmediate();
+    executeWithSignals(currentInstruction, currentSignals, nullptr);
+}
 
-    if (currentSignals.halt) {
+void CPU::stepPipelined() {
+    if (!ifid.valid && !idex.valid && fetchHalted) {
         halted = true;
         return;
     }
 
-    if (currentSignals.memRead) {
+    PipelineTrace trace;
+    trace.fetch = "-";
+    trace.decode = "-";
+    trace.execute = "-";
+
+    bool controlTransferTaken = false;
+
+    // Execute stage.
+    if (idex.valid) {
+        currentInstruction = idex.instruction;
+        currentSignals = idex.signals;
+        trace.execute = idex.instruction.toString();
+        executeWithSignals(idex.instruction, idex.signals, &controlTransferTaken);
+
+        if (idex.signals.halt) {
+            fetchHalted = true;
+        }
+    }
+
+    // Decode stage.
+    IDEX nextIdex;
+    if (ifid.valid && !controlTransferTaken) {
+        trace.decode = ifid.instruction.toString();
+        nextIdex.valid = true;
+        nextIdex.pc = ifid.pc;
+        nextIdex.instruction = ifid.instruction;
+        nextIdex.signals = ControlUnit::decode(ifid.instruction);
+    }
+
+    // Fetch stage.
+    IFID nextIfid;
+    if (!fetchHalted && !controlTransferTaken) {
+        if (programCounter < program.size()) {
+            nextIfid.valid = true;
+            nextIfid.pc = programCounter;
+            nextIfid.instruction = program[programCounter];
+            trace.fetch = nextIfid.instruction.toString();
+            ++programCounter;
+        } else {
+            fetchHalted = true;
+        }
+    }
+
+    // Taken control transfer flushes younger IF/ID instructions.
+    if (controlTransferTaken) {
+        nextIfid.valid = false;
+        nextIdex.valid = false;
+    }
+
+    ifid = nextIfid;
+    idex = nextIdex;
+
+    traceHistory.push_back(trace);
+    ++cycle;
+}
+
+void CPU::executeWithSignals(
+    const Instruction& instruction,
+    const ControlSignals& signals,
+    bool* controlTransferTaken
+) {
+    if (controlTransferTaken != nullptr) {
+        *controlTransferTaken = false;
+    }
+
+    // From here down, execution follows control signals instead of opcodes.
+    const std::size_t src1 = static_cast<std::size_t>(instruction.getSrc1());
+    const std::size_t src2 = static_cast<std::size_t>(instruction.getSrc2());
+    const int immediate = instruction.getImmediate();
+
+    if (signals.halt) {
+        halted = true;
+        return;
+    }
+
+    if (signals.memRead) {
         registers.write(
-            static_cast<std::size_t>(currentInstruction.dst),
+            static_cast<std::size_t>(instruction.dst),
             memory.read(static_cast<std::size_t>(immediate))
         );
         return;
     }
 
-    if (currentSignals.memWrite) {
+    if (signals.memWrite) {
         memory.write(
             static_cast<std::size_t>(immediate),
             registers.read(src1)
@@ -169,33 +255,42 @@ void CPU::execute() {
         return;
     }
 
-    if (currentSignals.isJump) {
+    if (signals.isJump) {
         programCounter = static_cast<std::size_t>(immediate);
+        if (controlTransferTaken != nullptr) {
+            *controlTransferTaken = true;
+        }
         return;
     }
 
-    if (currentSignals.isBranch) {
+    if (signals.isBranch) {
         // Conditional branches update the PC only when the zero flag matches.
-        if (currentSignals.branchType == BranchType::JZ && zeroFlag) {
+        if (signals.branchType == BranchType::JZ && zeroFlag) {
             programCounter = static_cast<std::size_t>(immediate);
+            if (controlTransferTaken != nullptr) {
+                *controlTransferTaken = true;
+            }
         }
 
-        if (currentSignals.branchType == BranchType::JNZ && !zeroFlag) {
+        if (signals.branchType == BranchType::JNZ && !zeroFlag) {
             programCounter = static_cast<std::size_t>(immediate);
+            if (controlTransferTaken != nullptr) {
+                *controlTransferTaken = true;
+            }
         }
 
         return;
     }
 
     // MOV reaches this path with ALUOp::NONE and regWrite set.
-    if (currentSignals.aluOp == ALUOp::NONE && !currentSignals.regWrite) {
+    if (signals.aluOp == ALUOp::NONE && !signals.regWrite) {
         return;
     }
 
     // Immediate is the default write-back value for MOV.
     int result = immediate;
 
-    switch (currentSignals.aluOp) {
+    switch (signals.aluOp) {
         case ALUOp::ADD:
             result = alu.add(
                 registers.read(src1),
@@ -236,8 +331,8 @@ void CPU::execute() {
             break;
     }
 
-    if (currentSignals.regWrite) {
-        registers.write(static_cast<std::size_t>(currentInstruction.dst), result);
+    if (signals.regWrite) {
+        registers.write(static_cast<std::size_t>(instruction.dst), result);
     }
 }
 

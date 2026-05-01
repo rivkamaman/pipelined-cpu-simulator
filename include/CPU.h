@@ -18,6 +18,19 @@ struct PipelineTrace {
     std::string execute;
 };
 
+struct IFID {
+    bool valid = false;
+    std::size_t pc = 0;
+    Instruction instruction;
+};
+
+struct IDEX {
+    bool valid = false;
+    std::size_t pc = 0;
+    Instruction instruction;
+    ControlSignals signals;
+};
+
 // CPU ties together fetch, decode, execute, registers, memory, and the ALU.
 class CPU {
 public:
@@ -29,6 +42,9 @@ public:
 
     // Execute instructions until HALT or the program counter leaves the program.
     void run();
+
+    // Execute instructions using a real IF/ID/EX pipeline.
+    void runPipelined();
 
     // Report whether the CPU has stopped.
     bool isHalted() const;
@@ -46,6 +62,9 @@ private:
     // Execute one full fetch-decode-execute cycle.
     void step();
 
+    // Execute one real pipelined IF/ID/EX cycle.
+    void stepPipelined();
+
     // Copy the next program instruction into currentInstruction.
     void fetch();
 
@@ -60,6 +79,13 @@ private:
 
     // Add final rows that drain the simulated pipeline view.
     void flushPipelineTrace();
+
+    // Execute one instruction using externally supplied control signals.
+    void executeWithSignals(
+        const Instruction& instruction,
+        const ControlSignals& signals,
+        bool* controlTransferTaken
+    );
 
     // Instruction memory for this simple simulator.
     std::vector<Instruction> program;
@@ -77,9 +103,12 @@ private:
     std::vector<PipelineTrace> traceHistory;
     std::string pipelineFetchStage;
     std::string pipelineDecodeStage;
+    IFID ifid;
+    IDEX idex;
     std::size_t programCounter;
     std::size_t cycle;
     bool halted;
+    bool fetchHalted;
     bool zeroFlag;
 };
 

@@ -17,6 +17,7 @@ enum class Opcode {
     JMP,
     JZ,
     JNZ,
+    NOP,
     HALT
 };
 

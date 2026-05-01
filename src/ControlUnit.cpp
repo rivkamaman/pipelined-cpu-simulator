@@ -49,6 +49,8 @@ ControlSignals ControlUnit::decode(const Instruction& instruction) {
             signals.isBranch = true;
             signals.branchType = BranchType::JNZ;
             break;
+        case Opcode::NOP:
+            break;
         case Opcode::HALT:
             signals.halt = true;
             break;
