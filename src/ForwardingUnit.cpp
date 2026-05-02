@@ -11,10 +11,32 @@ ForwardingDecision ForwardingUnit::resolve(
         return decision;
     }
 
-    // Resolve each source independently; one operand may forward while the other reads normally.
-    decision.forwardA = resolveSource(idex.instruction.getSrc1(), exmem, memwb);
-    decision.forwardB = resolveSource(idex.instruction.getSrc2(), exmem, memwb);
+    // Resolve only operands the instruction really reads.
+    if (readsSrc1(idex)) {
+        decision.forwardA = resolveSource(idex.instruction.getSrc1(), exmem, memwb);
+    }
+    if (readsSrc2(idex)) {
+        decision.forwardB = resolveSource(idex.instruction.getSrc2(), exmem, memwb);
+    }
     return decision;
+}
+
+bool ForwardingUnit::readsSrc1(const IDEX& idex) {
+    return idex.signals.memWrite
+        || idex.signals.aluOp == ALUOp::ADD
+        || idex.signals.aluOp == ALUOp::ADDI
+        || idex.signals.aluOp == ALUOp::SUB
+        || idex.signals.aluOp == ALUOp::AND
+        || idex.signals.aluOp == ALUOp::OR
+        || idex.signals.aluOp == ALUOp::CMP;
+}
+
+bool ForwardingUnit::readsSrc2(const IDEX& idex) {
+    return idex.signals.aluOp == ALUOp::ADD
+        || idex.signals.aluOp == ALUOp::SUB
+        || idex.signals.aluOp == ALUOp::AND
+        || idex.signals.aluOp == ALUOp::OR
+        || idex.signals.aluOp == ALUOp::CMP;
 }
 
 int ForwardingUnit::resolveSource(int src, const EXMEM& exmem, const MEMWB& memwb) {

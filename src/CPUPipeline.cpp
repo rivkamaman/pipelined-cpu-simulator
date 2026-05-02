@@ -17,6 +17,8 @@ void CPU::runPipelined() {
 }
 
 void CPU::stepPipelined() {
+    stats.recordCycle();
+
     PipelineTrace trace;
     trace.fetch = "-";
     trace.decode = "-";
@@ -44,12 +46,16 @@ void CPU::stepPipelined() {
 
     const bool stallForLoadUse = !pipelineFlushRequested
         && StallUnit::shouldStallForLoadUse(idex, ifid);
+    if (stallForLoadUse) {
+        stats.recordStall();
+    }
 
     // D) ID
     IDEX nextIdex;
     if (pipelineFlushRequested) {
         // A taken branch or jump is resolved in EX. Instructions currently in IF/ID
         // and the would-be next ID/EX slot are younger wrong-path work, so flush them.
+        stats.recordFlush();
         trace.decode = "FLUSH";
     } else {
         if (HazardUnit::hasDataHazard(idex, ifid)) {
@@ -163,14 +169,18 @@ EXMEM CPU::executeStage(const IDEX& input) {
     int operandB = registers.read(src2);
 
     if (forwarding.forwardA == FROM_EXMEM) {
+        stats.recordForwarding();
         operandA = exmem.aluResult;
     } else if (forwarding.forwardA == FROM_MEMWB) {
+        stats.recordForwarding();
         operandA = memwb.writeBackData;
     }
 
     if (forwarding.forwardB == FROM_EXMEM) {
+        stats.recordForwarding();
         operandB = exmem.aluResult;
     } else if (forwarding.forwardB == FROM_MEMWB) {
+        stats.recordForwarding();
         operandB = memwb.writeBackData;
     }
 
@@ -271,6 +281,8 @@ void CPU::writeBackStage(const MEMWB& input) {
     if (!input.valid) {
         return;
     }
+
+    stats.recordInstruction();
 
     if (input.signals.regWrite) {
         registers.write(

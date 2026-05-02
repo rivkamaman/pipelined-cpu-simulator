@@ -22,6 +22,7 @@ void CPU::loadProgram(const std::vector<Instruction>& instructions) {
     fetchHalted = false;
     pipelineFlushRequested = false;
     zeroFlag = false;
+    stats.reset();
     traceHistory.clear();
     pipelineFetchStage.clear();
     pipelineDecodeStage.clear();
@@ -54,8 +55,15 @@ bool CPU::getZeroFlag() const {
 
 void CPU::printPipelineTrace() const {
     TracePrinter::printPipelineTrace(traceHistory);
+    if (stats.hasCycles()) {
+        printStats();
+    }
 }
 
 void CPU::printState(std::size_t executedPc) const {
     TracePrinter::printCycle(cycle, executedPc, currentInstruction, registers, zeroFlag);
+}
+
+void CPU::printStats() const {
+    stats.print();
 }

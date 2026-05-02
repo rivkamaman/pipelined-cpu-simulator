@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ALU.h"
+#include "CPUStatistics.h"
 #include "ControlUnit.h"
 #include "Instruction.h"
 #include "Memory.h"
@@ -75,6 +76,9 @@ private:
     // Print the trace line for the instruction that just ran.
     void printState(std::size_t executedPc) const;
 
+    // Print aggregate execution statistics after the trace.
+    void printStats() const;
+
     // Add final rows that drain the simulated pipeline view.
     void flushPipelineTrace();
 
@@ -98,6 +102,7 @@ private:
     Registers registers;
     Memory memory;
     ALU alu;
+    CPUStatistics stats;
     std::vector<PipelineTrace> traceHistory;
     std::string pipelineFetchStage;
     std::string pipelineDecodeStage;
