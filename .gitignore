@@ -7,3 +7,4 @@ cpu_simulator
 .vscode/
 cpu_simulator
 cpu_tests
+.codex
