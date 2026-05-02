@@ -5,6 +5,8 @@
 
 #include "Assembler.h"
 #include "CPU.h"
+#include "ForwardingUnit.h"
+#include "HazardUnit.h"
 
 void testAssemblerMovParsing() {
     const Instruction instruction = Assembler::parseLine("MOV R2 42");
@@ -391,6 +393,98 @@ void testPipelinedHaltDrainsPipeline() {
     assert(cpu.getRegisterValue(1) == 6);
 }
 
+void testHazardUnitRules() {
+    IDEX writer;
+    writer.valid = true;
+    writer.instruction = Instruction(Opcode::MOV, 1, 0, 0, 9);
+    writer.signals = ControlUnit::decode(writer.instruction);
+
+    IFID addi;
+    addi.valid = true;
+    addi.instruction = Instruction(Opcode::ADDI, 4, 1, 0, 7);
+
+    assert(HazardUnit::hasDataHazard(writer, addi));
+
+    IFID store;
+    store.valid = true;
+    store.instruction = Instruction(Opcode::STORE, 0, 1, 0, 10);
+
+    assert(HazardUnit::hasDataHazard(writer, store));
+
+    IFID cmp;
+    cmp.valid = true;
+    cmp.instruction = Instruction(Opcode::CMP, 0, 2, 1, 0);
+
+    assert(HazardUnit::hasDataHazard(writer, cmp));
+
+    EXMEM exmem;
+    exmem.valid = true;
+    exmem.instruction = Instruction(Opcode::LOAD, 2, 0, 0, 10);
+    exmem.signals = ControlUnit::decode(exmem.instruction);
+
+    MEMWB memwb;
+
+    IFID ifid;
+    ifid.valid = true;
+    ifid.instruction = Instruction(Opcode::SUB, 3, 2, 4, 0);
+
+    assert(HazardUnit::hasDataHazard(IDEX{}, exmem, memwb, ifid));
+
+    IDEX nonWriter;
+    nonWriter.valid = true;
+    nonWriter.instruction = Instruction(Opcode::CMP, 0, 1, 2, 0);
+    nonWriter.signals = ControlUnit::decode(nonWriter.instruction);
+
+    assert(!HazardUnit::hasDataHazard(nonWriter, addi));
+}
+
+void testForwardingUnitRules() {
+    IDEX idex;
+    idex.valid = true;
+    idex.instruction = Instruction(Opcode::SUB, 3, 1, 2, 0);
+    idex.signals = ControlUnit::decode(idex.instruction);
+
+    EXMEM exmem;
+    exmem.valid = true;
+    exmem.instruction = Instruction(Opcode::ADD, 1, 4, 5, 0);
+    exmem.signals = ControlUnit::decode(exmem.instruction);
+    exmem.aluResult = 99;
+
+    MEMWB memwb;
+    memwb.valid = true;
+    memwb.instruction = Instruction(Opcode::ADDI, 2, 0, 0, 4);
+    memwb.signals = ControlUnit::decode(memwb.instruction);
+    memwb.writeBackData = 4;
+
+    const ForwardingDecision decision = ForwardingUnit::resolve(idex, exmem, memwb);
+
+    assert(decision.forwardA == FROM_EXMEM);
+    assert(decision.forwardB == FROM_MEMWB);
+
+    exmem.instruction = Instruction(Opcode::LOAD, 1, 0, 0, 10);
+    exmem.signals = ControlUnit::decode(exmem.instruction);
+
+    assert(ForwardingUnit::resolve(idex, exmem, MEMWB{}).forwardA == NO_FORWARD);
+}
+
+void testPipelinedForwardingResolvesAddToSubDependency() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 10",
+        "MOV R1 3",
+        "ADD R2 R0 R1",
+        "SUB R3 R2 R1",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(2) == 13);
+    assert(cpu.getRegisterValue(3) == 10);
+}
+
 int main() {
     testAssemblerMovParsing();
     testAssemblerAddParsing();
@@ -420,6 +514,9 @@ int main() {
     testPipelinedLoadStoreWithNops();
     testPipelinedBranchTakenFlushesYoungerInstructions();
     testPipelinedHaltDrainsPipeline();
+    testHazardUnitRules();
+    testForwardingUnitRules();
+    testPipelinedForwardingResolvesAddToSubDependency();
 
     std::cout << "All tests passed successfully!" << std::endl;
     return 0;
