@@ -3,8 +3,10 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include "Instruction.h"
+#include "PipelineTrace.h"
 #include "Registers.h"
 
 // Formats and prints the simulator trace after each CPU cycle.
@@ -18,6 +20,9 @@ public:
         const Registers& registers,
         bool zeroFlag
     );
+
+    // Print the IF/ID/EX/MEM/WB pipeline history table.
+    static void printPipelineTrace(const std::vector<PipelineTrace>& traceHistory);
 };
 
 #endif

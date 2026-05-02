@@ -10,45 +10,9 @@
 #include "ControlUnit.h"
 #include "Instruction.h"
 #include "Memory.h"
+#include "PipelineRegisters.h"
+#include "PipelineTrace.h"
 #include "Registers.h"
-
-struct PipelineTrace {
-    std::string fetch;
-    std::string decode;
-    std::string execute;
-    std::string memory;
-    std::string writeBack;
-};
-
-struct IFID {
-    bool valid = false;
-    std::size_t pc = 0;
-    Instruction instruction;
-};
-
-struct IDEX {
-    bool valid = false;
-    std::size_t pc = 0;
-    Instruction instruction;
-    ControlSignals signals;
-};
-
-struct EXMEM {
-    bool valid = false;
-    std::size_t pc = 0;
-    Instruction instruction;
-    ControlSignals signals;
-    int aluResult = 0;
-    int storeData = 0;
-};
-
-struct MEMWB {
-    bool valid = false;
-    std::size_t pc = 0;
-    Instruction instruction;
-    ControlSignals signals;
-    int writeBackData = 0;
-};
 
 // CPU ties together fetch, decode, execute, registers, memory, and the ALU.
 class CPU {
