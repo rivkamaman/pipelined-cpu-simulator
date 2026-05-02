@@ -1,5 +1,10 @@
 #include "CPU.h"
 
+#include <iostream>
+
+#include "ForwardingUnit.h"
+#include "HazardUnit.h"
+
 void CPU::runPipelined() {
     while (!fetchHalted || ifid.valid || idex.valid || exmem.valid || memwb.valid) {
         stepPipelined();
@@ -38,6 +43,27 @@ void CPU::stepPipelined() {
     // D) ID
     IDEX nextIdex;
     if (!pipelineFlushRequested) {
+        if (HazardUnit::hasDataHazard(idex, ifid)) {
+            std::cout << "Warning: RAW hazard detected between "
+                      << idex.instruction.toString()
+                      << " and "
+                      << ifid.instruction.toString()
+                      << std::endl;
+        }
+        if (HazardUnit::hasDataHazard(exmem, ifid)) {
+            std::cout << "Warning: RAW hazard detected between "
+                      << exmem.instruction.toString()
+                      << " and "
+                      << ifid.instruction.toString()
+                      << std::endl;
+        }
+        if (HazardUnit::hasDataHazard(memwb, ifid)) {
+            std::cout << "Warning: RAW hazard detected between "
+                      << memwb.instruction.toString()
+                      << " and "
+                      << ifid.instruction.toString()
+                      << std::endl;
+        }
         if (ifid.valid) {
             trace.decode = ifid.instruction.toString();
         }
@@ -108,6 +134,23 @@ EXMEM CPU::executeStage(const IDEX& input) {
     const std::size_t src1 = static_cast<std::size_t>(input.instruction.getSrc1());
     const std::size_t src2 = static_cast<std::size_t>(input.instruction.getSrc2());
     const int immediate = input.instruction.getImmediate();
+    const ForwardingDecision forwarding = ForwardingUnit::resolve(input, exmem, memwb);
+
+    // Start with register-file operands, then replace only the sources that need bypassing.
+    int operandA = registers.read(src1);
+    int operandB = registers.read(src2);
+
+    if (forwarding.forwardA == FROM_EXMEM) {
+        operandA = exmem.aluResult;
+    } else if (forwarding.forwardA == FROM_MEMWB) {
+        operandA = memwb.writeBackData;
+    }
+
+    if (forwarding.forwardB == FROM_EXMEM) {
+        operandB = exmem.aluResult;
+    } else if (forwarding.forwardB == FROM_MEMWB) {
+        operandB = memwb.writeBackData;
+    }
 
     if (input.signals.halt) {
         fetchHalted = true;
@@ -141,7 +184,7 @@ EXMEM CPU::executeStage(const IDEX& input) {
 
     if (input.signals.memRead || input.signals.memWrite) {
         output.aluResult = immediate;
-        output.storeData = registers.read(src1);
+        output.storeData = operandA;
         return output;
     }
 
@@ -152,22 +195,22 @@ EXMEM CPU::executeStage(const IDEX& input) {
     int result = immediate;
     switch (input.signals.aluOp) {
         case ALUOp::ADD:
-            result = alu.add(registers.read(src1), registers.read(src2));
+            result = alu.add(operandA, operandB);
             break;
         case ALUOp::ADDI:
-            result = alu.addImmediate(registers.read(src1), immediate);
+            result = alu.addImmediate(operandA, immediate);
             break;
         case ALUOp::SUB:
-            result = alu.sub(registers.read(src1), registers.read(src2));
+            result = alu.sub(operandA, operandB);
             break;
         case ALUOp::AND:
-            result = alu.bitwiseAnd(registers.read(src1), registers.read(src2));
+            result = alu.bitwiseAnd(operandA, operandB);
             break;
         case ALUOp::OR:
-            result = alu.bitwiseOr(registers.read(src1), registers.read(src2));
+            result = alu.bitwiseOr(operandA, operandB);
             break;
         case ALUOp::CMP:
-            zeroFlag = alu.equal(registers.read(src1), registers.read(src2));
+            zeroFlag = alu.equal(operandA, operandB);
             break;
         case ALUOp::NONE:
             break;
