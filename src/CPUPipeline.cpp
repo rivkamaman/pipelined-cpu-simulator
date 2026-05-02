@@ -4,6 +4,7 @@
 
 #include "ForwardingUnit.h"
 #include "HazardUnit.h"
+#include "StallUnit.h"
 
 void CPU::runPipelined() {
     while (!fetchHalted || ifid.valid || idex.valid || exmem.valid || memwb.valid) {
@@ -40,6 +41,9 @@ void CPU::stepPipelined() {
     }
     EXMEM nextExmem = executeStage(idex);
 
+    const bool stallForLoadUse = !pipelineFlushRequested
+        && StallUnit::shouldStallForLoadUse(idex, ifid);
+
     // D) ID
     IDEX nextIdex;
     if (!pipelineFlushRequested) {
@@ -67,15 +71,24 @@ void CPU::stepPipelined() {
         if (ifid.valid) {
             trace.decode = ifid.instruction.toString();
         }
-        nextIdex = decodeStage(ifid);
+        // On a load-use stall, leave nextIdex invalid: that inserts the bubble.
+        if (!stallForLoadUse) {
+            nextIdex = decodeStage(ifid);
+        }
     }
 
     // E) IF
     IFID nextIfid;
     if (!pipelineFlushRequested) {
-        nextIfid = fetchStage();
-        if (nextIfid.valid) {
-            trace.fetch = nextIfid.instruction.toString();
+        if (stallForLoadUse) {
+            // Freeze IF/ID and skip fetchStage(), which also freezes the PC.
+            nextIfid = ifid;
+            trace.fetch = "STALL";
+        } else {
+            nextIfid = fetchStage();
+            if (nextIfid.valid) {
+                trace.fetch = nextIfid.instruction.toString();
+            }
         }
     }
 

@@ -7,6 +7,7 @@
 #include "CPU.h"
 #include "ForwardingUnit.h"
 #include "HazardUnit.h"
+#include "StallUnit.h"
 
 void testAssemblerMovParsing() {
     const Instruction instruction = Assembler::parseLine("MOV R2 42");
@@ -485,6 +486,43 @@ void testPipelinedForwardingResolvesAddToSubDependency() {
     assert(cpu.getRegisterValue(3) == 10);
 }
 
+void testStallUnitRules() {
+    IDEX load;
+    load.valid = true;
+    load.instruction = Instruction(Opcode::LOAD, 1, 0, 0, 10);
+    load.signals = ControlUnit::decode(load.instruction);
+
+    IFID addi;
+    addi.valid = true;
+    addi.instruction = Instruction(Opcode::ADDI, 2, 1, 0, 5);
+
+    assert(StallUnit::shouldStallForLoadUse(load, addi));
+
+    IFID unrelated;
+    unrelated.valid = true;
+    unrelated.instruction = Instruction(Opcode::ADD, 2, 3, 4, 0);
+
+    assert(!StallUnit::shouldStallForLoadUse(load, unrelated));
+}
+
+void testPipelinedLoadUseStallResolvesImmediateDependency() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 42",
+        "STORE R0 10",
+        "LOAD R1 10",
+        "ADDI R2 R1 1",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(1) == 42);
+    assert(cpu.getRegisterValue(2) == 43);
+}
+
 int main() {
     testAssemblerMovParsing();
     testAssemblerAddParsing();
@@ -517,6 +555,8 @@ int main() {
     testHazardUnitRules();
     testForwardingUnitRules();
     testPipelinedForwardingResolvesAddToSubDependency();
+    testStallUnitRules();
+    testPipelinedLoadUseStallResolvesImmediateDependency();
 
     std::cout << "All tests passed successfully!" << std::endl;
     return 0;
