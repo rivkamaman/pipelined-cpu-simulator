@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "ControlHazardUnit.h"
 #include "ForwardingUnit.h"
 #include "HazardUnit.h"
 #include "StallUnit.h"
@@ -46,7 +47,11 @@ void CPU::stepPipelined() {
 
     // D) ID
     IDEX nextIdex;
-    if (!pipelineFlushRequested) {
+    if (pipelineFlushRequested) {
+        // A taken branch or jump is resolved in EX. Instructions currently in IF/ID
+        // and the would-be next ID/EX slot are younger wrong-path work, so flush them.
+        trace.decode = "FLUSH";
+    } else {
         if (HazardUnit::hasDataHazard(idex, ifid)) {
             std::cout << "Warning: RAW hazard detected between "
                       << idex.instruction.toString()
@@ -79,7 +84,11 @@ void CPU::stepPipelined() {
 
     // E) IF
     IFID nextIfid;
-    if (!pipelineFlushRequested) {
+    if (pipelineFlushRequested) {
+        // Do not fetch the next sequential instruction after a redirect.
+        // EX already wrote programCounter to the branch/jump target.
+        trace.fetch = "FLUSH";
+    } else {
         if (stallForLoadUse) {
             // Freeze IF/ID and skip fetchStage(), which also freezes the PC.
             nextIfid = ifid;
@@ -170,27 +179,20 @@ EXMEM CPU::executeStage(const IDEX& input) {
         return output;
     }
 
-    if (input.signals.isJump) {
-        programCounter = static_cast<std::size_t>(immediate);
+    const ControlHazardDecision control = ControlHazardUnit::resolve(input, zeroFlag);
+    if (control.redirectPc) {
+        programCounter = control.targetPc;
+    }
+    if (control.flush) {
+        // Control transfers are resolved in EX. Younger IF/ID and ID/EX work is
+        // flushed by stepPipelined(); older MEM/WB stages keep draining normally.
         pipelineFlushRequested = true;
         output.valid = false;
         return output;
     }
-
-    if (input.signals.isBranch) {
-        bool taken = false;
-        if (input.signals.branchType == BranchType::JZ && zeroFlag) {
-            taken = true;
-        }
-        if (input.signals.branchType == BranchType::JNZ && !zeroFlag) {
-            taken = true;
-        }
-
-        if (taken) {
-            programCounter = static_cast<std::size_t>(immediate);
-            pipelineFlushRequested = true;
-        }
-
+    if (input.signals.isJump || input.signals.isBranch) {
+        // Untaken branches do not redirect or flush, but control instructions
+        // still finish in EX and should not occupy MEM/WB.
         output.valid = false;
         return output;
     }

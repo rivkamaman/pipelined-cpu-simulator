@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Assembler.h"
+#include "ControlHazardUnit.h"
 #include "CPU.h"
 #include "ForwardingUnit.h"
 #include "HazardUnit.h"
@@ -347,6 +348,28 @@ void testPipelinedBranchTakenFlushesYoungerInstructions() {
     assert(cpu.getRegisterValue(1) == 1);
 }
 
+void testPipelinedJumpFlushesWrongPathInstructions() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R1 1",
+        "JMP target",
+        "MOV R2 99",
+        "MOV R3 99",
+        "target:",
+        "MOV R4 7",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(1) == 1);
+    assert(cpu.getRegisterValue(2) == 0);
+    assert(cpu.getRegisterValue(3) == 0);
+    assert(cpu.getRegisterValue(4) == 7);
+}
+
 void testPipelinedLoadStoreWithNops() {
     CPU cpu;
 
@@ -523,6 +546,35 @@ void testPipelinedLoadUseStallResolvesImmediateDependency() {
     assert(cpu.getRegisterValue(2) == 43);
 }
 
+void testControlHazardUnitRules() {
+    IDEX jump;
+    jump.valid = true;
+    jump.instruction = Instruction(Opcode::JMP, 0, 0, 0, 7);
+    jump.signals = ControlUnit::decode(jump.instruction);
+
+    ControlHazardDecision decision = ControlHazardUnit::resolve(jump, false);
+
+    assert(decision.flush);
+    assert(decision.redirectPc);
+    assert(decision.targetPc == 7);
+
+    IDEX branch;
+    branch.valid = true;
+    branch.instruction = Instruction(Opcode::JZ, 0, 0, 0, 4);
+    branch.signals = ControlUnit::decode(branch.instruction);
+
+    decision = ControlHazardUnit::resolve(branch, true);
+
+    assert(decision.flush);
+    assert(decision.redirectPc);
+    assert(decision.targetPc == 4);
+
+    decision = ControlHazardUnit::resolve(branch, false);
+
+    assert(!decision.flush);
+    assert(!decision.redirectPc);
+}
+
 int main() {
     testAssemblerMovParsing();
     testAssemblerAddParsing();
@@ -551,12 +603,14 @@ int main() {
     testPipelinedWithNopsAvoidsHazard();
     testPipelinedLoadStoreWithNops();
     testPipelinedBranchTakenFlushesYoungerInstructions();
+    testPipelinedJumpFlushesWrongPathInstructions();
     testPipelinedHaltDrainsPipeline();
     testHazardUnitRules();
     testForwardingUnitRules();
     testPipelinedForwardingResolvesAddToSubDependency();
     testStallUnitRules();
     testPipelinedLoadUseStallResolvesImmediateDependency();
+    testControlHazardUnitRules();
 
     std::cout << "All tests passed successfully!" << std::endl;
     return 0;
