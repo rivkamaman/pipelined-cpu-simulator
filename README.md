@@ -19,12 +19,19 @@ C++ project implementing a small RISC-style CPU with:
   - Sequential mode prints cycle/register state and pipeline-style trace
   - Pipelined mode prints real per-cycle pipeline state:
     - `Cycle | IF | ID | EX | MEM | WB`
+  - Pipeline runs also print a final CPU statistics summary with cycles, completed instructions, CPI, stalls, flushes, and forwarding events
 
 ## Architecture
 
 - `ControlUnit::decode()` is the only opcode-dependent stage.
 - CPU execute behavior is signal-driven.
 - ALU is separate from control and CPU flow logic.
+- Hazard logic is split into focused units:
+  - `HazardUnit` detects RAW dependencies for diagnostics
+  - `ForwardingUnit` resolves ALU/register RAW hazards by bypassing from `EXMEM` or `MEMWB`
+  - `StallUnit` inserts a one-cycle bubble for load-use hazards
+  - `ControlHazardUnit` resolves jumps/branches and requests pipeline flushes
+  - `CPUStatistics` collects execution counters during pipelined runs
 
 ## Execution Modes
 
@@ -46,13 +53,32 @@ C++ project implementing a small RISC-style CPU with:
 
 ### Current pipeline constraints
 
-- No hazard detection
-- No forwarding
-- No stalls
+- RAW hazards are detected and printed as warnings.
+- ALU/register RAW hazards are handled with forwarding from `EXMEM` and `MEMWB`.
+- Load-use hazards are handled with a one-cycle stall:
+  - `IFID` is frozen
+  - PC is frozen by skipping fetch
+  - a bubble is inserted into `IDEX`
+- Taken jumps/branches are handled with EX-stage flush:
+  - wrong-path `IFID` / `IDEX` work is cleared
+  - older `EXMEM` / `MEMWB` work drains normally
 - No branch prediction
-- Branch/jump control hazards are handled by EX-stage flush of younger stages
 
-Because there is no automatic data hazard handling, tests/programs should use `NOP` spacing between dependent instructions.
+Forwarding does not remove every possible delay: an immediate consumer after `LOAD` still needs the automatic load-use stall because loaded data is not available until after MEM.
+
+### Pipeline statistics
+
+At the end of a pipelined trace, the simulator prints:
+
+```text
+=== CPU Statistics ===
+Cycles:       10
+Instructions: 4
+CPI:          2.50
+Stalls:       1
+Flushes:      0
+Forwardings:  2
+```
 
 ## Build and Run
 
@@ -64,4 +90,4 @@ Because there is no automatic data hazard handling, tests/programs should use `N
 Tests are implemented with `assert` and include:
 - assembler parsing checks
 - sequential execution checks
-- pipelined execution checks (ALU, LOAD/STORE, branch flush, HALT drain)
+- pipelined execution checks (ALU, LOAD/STORE, forwarding, load-use stalls, branch/jump flush, HALT drain)
