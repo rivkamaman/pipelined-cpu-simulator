@@ -17,20 +17,6 @@ ControlHazardDecision ControlHazardUnit::resolve(const IDEX& idex, bool zeroFlag
         return decision;
     }
 
-    if (!idex.signals.isBranch) {
-        return decision;
-    }
-
-    // Branches are resolved in EX because the condition flags are known there.
-    const bool taken =
-        (idex.signals.branchType == BranchType::JZ && zeroFlag)
-        || (idex.signals.branchType == BranchType::JNZ && !zeroFlag);
-
-    if (taken) {
-        decision.flush = true;
-        decision.redirectPc = true;
-        decision.targetPc = target;
-    }
-
+    (void)zeroFlag;
     return decision;
 }

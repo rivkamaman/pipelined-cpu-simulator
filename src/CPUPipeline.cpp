@@ -53,9 +53,9 @@ void CPU::stepPipelined() {
     // D) ID
     IDEX nextIdex;
     if (pipelineFlushRequested) {
-        // A taken branch or jump is resolved in EX. Instructions currently in IF/ID
-        // and the would-be next ID/EX slot are younger wrong-path work, so flush them.
-        stats.recordFlush();
+        // A jump or mispredicted branch is resolved in EX. Instructions currently
+        // in IF/ID and the would-be next ID/EX slot are younger wrong-path work,
+        // so flush them.
         trace.decode = "FLUSH";
     } else {
         if (HazardUnit::hasDataHazard(idex, ifid)) {
@@ -131,7 +131,27 @@ IFID CPU::fetchStage() {
     output.valid = true;
     output.pc = programCounter;
     output.instruction = program[programCounter];
-    ++programCounter;
+
+    const ControlSignals signals = ControlUnit::decode(output.instruction);
+    if (signals.isJump) {
+        output.predictedTaken = false;
+        output.predictedPc = output.pc + 1;
+        programCounter = output.predictedPc;
+        return output;
+    }
+
+    if (signals.isBranch) {
+        stats.recordBranchPrediction();
+    }
+
+    const BranchPrediction prediction = branchPredictor.predict(
+        output.pc,
+        output.instruction,
+        signals
+    );
+    output.predictedTaken = prediction.predictedTaken;
+    output.predictedPc = prediction.predictedPc;
+    programCounter = prediction.predictedPc;
     return output;
 }
 
@@ -145,6 +165,8 @@ IDEX CPU::decodeStage(const IFID& input) {
     output.pc = input.pc;
     output.instruction = input.instruction;
     output.signals = ControlUnit::decode(input.instruction);
+    output.predictedTaken = input.predictedTaken;
+    output.predictedPc = input.predictedPc;
     return output;
 }
 
@@ -189,20 +211,55 @@ EXMEM CPU::executeStage(const IDEX& input) {
         return output;
     }
 
-    const ControlHazardDecision control = ControlHazardUnit::resolve(input, zeroFlag);
-    if (control.redirectPc) {
-        programCounter = control.targetPc;
-    }
-    if (control.flush) {
-        // Control transfers are resolved in EX. Younger IF/ID and ID/EX work is
-        // flushed by stepPipelined(); older MEM/WB stages keep draining normally.
-        pipelineFlushRequested = true;
+    if (input.signals.isJump) {
+        const ControlHazardDecision control = ControlHazardUnit::resolve(input, zeroFlag);
+        if (control.redirectPc) {
+            programCounter = control.targetPc;
+        }
+        stats.recordFlush();
+        // JMP is unconditional: fetch follows the sequential path until EX
+        // redirects it, so younger IF/ID and ID/EX work must be flushed.
+        pipelineFlushRequested = control.flush;
+        fetchHalted = false;
         output.valid = false;
         return output;
     }
-    if (input.signals.isJump || input.signals.isBranch) {
-        // Untaken branches do not redirect or flush, but control instructions
-        // still finish in EX and should not occupy MEM/WB.
+
+    if (input.signals.isBranch) {
+        bool actualTaken = false;
+
+        if (input.signals.branchType == BranchType::JZ && zeroFlag) {
+            actualTaken = true;
+        }
+
+        if (input.signals.branchType == BranchType::JNZ && !zeroFlag) {
+            actualTaken = true;
+        }
+
+        if (actualTaken) {
+            stats.recordBranchTaken();
+        } else {
+            stats.recordBranchNotTaken();
+        }
+
+        const std::size_t correctPc = actualTaken
+            ? static_cast<std::size_t>(input.instruction.getImmediate())
+            : input.pc + 1;
+
+        branchPredictor.update(input.pc, actualTaken);
+
+        if (input.predictedPc != correctPc) {
+            // A misprediction means IF and ID followed the wrong PC. Flush only
+            // that younger work; correctly predicted branches already fetched
+            // from the right path and do not need a flush.
+            stats.recordBranchMisprediction();
+            stats.recordFlush();
+            pipelineFlushRequested = true;
+            programCounter = correctPc;
+            fetchHalted = false;
+        }
+
+        // Branches resolve in EX and do not write registers or memory.
         output.valid = false;
         return output;
     }

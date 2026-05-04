@@ -348,6 +348,84 @@ void testPipelinedBranchTakenFlushesYoungerInstructions() {
     assert(cpu.getRegisterValue(1) == 1);
 }
 
+void testPipelinedCorrectlyPredictedNotTakenBranchDoesNotFlush() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 1",
+        "MOV R1 2",
+        "CMP R0 R1",
+        "JZ target",
+        "MOV R2 5",
+        "target:",
+        "MOV R3 7",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(2) == 5);
+    assert(cpu.getRegisterValue(3) == 7);
+    assert(cpu.getStatistics().getBranchPredictions() == 1);
+    assert(cpu.getStatistics().getBranchMispredictions() == 0);
+    assert(cpu.getStatistics().getFlushes() == 0);
+    assert(cpu.getStatistics().getBranchesNotTaken() == 1);
+}
+
+void testPipelinedInitiallyMispredictedTakenBranchFlushesWrongPath() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 9",
+        "MOV R1 9",
+        "CMP R0 R1",
+        "JZ target",
+        "MOV R2 99",
+        "MOV R4 99",
+        "target:",
+        "MOV R3 7",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(2) == 0);
+    assert(cpu.getRegisterValue(4) == 0);
+    assert(cpu.getRegisterValue(3) == 7);
+    assert(cpu.getStatistics().getBranchPredictions() == 1);
+    assert(cpu.getStatistics().getBranchMispredictions() == 1);
+    assert(cpu.getStatistics().getFlushes() == 1);
+    assert(cpu.getStatistics().getBranchesTaken() == 1);
+}
+
+void testPipelinedLoopBranchPredictorLearnsTakenBehavior() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 5",
+        "MOV R1 0",
+        "loop:",
+        "ADDI R0 R0 -1",
+        "CMP R0 R1",
+        "JNZ loop",
+        "MOV R3 7",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(0) == 0);
+    assert(cpu.getRegisterValue(3) == 7);
+    assert(cpu.getStatistics().getBranchPredictions() == 5);
+    assert(cpu.getStatistics().getBranchesTaken() == 4);
+    assert(cpu.getStatistics().getBranchesNotTaken() == 1);
+    assert(cpu.getStatistics().getBranchMispredictions()
+        < cpu.getStatistics().getBranchPredictions());
+}
+
 void testPipelinedJumpFlushesWrongPathInstructions() {
     CPU cpu;
 
@@ -565,9 +643,8 @@ void testControlHazardUnitRules() {
 
     decision = ControlHazardUnit::resolve(branch, true);
 
-    assert(decision.flush);
-    assert(decision.redirectPc);
-    assert(decision.targetPc == 4);
+    assert(!decision.flush);
+    assert(!decision.redirectPc);
 
     decision = ControlHazardUnit::resolve(branch, false);
 
@@ -603,6 +680,9 @@ int main() {
     testPipelinedWithNopsAvoidsHazard();
     testPipelinedLoadStoreWithNops();
     testPipelinedBranchTakenFlushesYoungerInstructions();
+    testPipelinedCorrectlyPredictedNotTakenBranchDoesNotFlush();
+    testPipelinedInitiallyMispredictedTakenBranchFlushesWrongPath();
+    testPipelinedLoopBranchPredictorLearnsTakenBehavior();
     testPipelinedJumpFlushesWrongPathInstructions();
     testPipelinedHaltDrainsPipeline();
     testHazardUnitRules();

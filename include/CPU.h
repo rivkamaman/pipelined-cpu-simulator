@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ALU.h"
+#include "BranchPredictor.h"
 #include "CPUStatistics.h"
 #include "ControlUnit.h"
 #include "Instruction.h"
@@ -38,6 +39,9 @@ public:
 
     // Read the current zero flag for tests and diagnostics.
     bool getZeroFlag() const;
+
+    // Read aggregate execution counters for tests and diagnostics.
+    const CPUStatistics& getStatistics() const;
 
     // Print the simulated fetch/decode/execute pipeline table.
     void printPipelineTrace() const;
@@ -102,6 +106,7 @@ private:
     Registers registers;
     Memory memory;
     ALU alu;
+    BranchPredictor branchPredictor;
     CPUStatistics stats;
     std::vector<PipelineTrace> traceHistory;
     std::string pipelineFetchStage;

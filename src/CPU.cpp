@@ -26,6 +26,7 @@ void CPU::loadProgram(const std::vector<Instruction>& instructions) {
     traceHistory.clear();
     pipelineFetchStage.clear();
     pipelineDecodeStage.clear();
+    branchPredictor.reset();
     ifid = IFID{};
     idex = IDEX{};
     exmem = EXMEM{};
@@ -51,6 +52,10 @@ std::int32_t CPU::getRegisterValue(std::size_t index) const {
 
 bool CPU::getZeroFlag() const {
     return zeroFlag;
+}
+
+const CPUStatistics& CPU::getStatistics() const {
+    return stats;
 }
 
 void CPU::printPipelineTrace() const {

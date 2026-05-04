@@ -10,6 +10,8 @@ struct IFID {
     bool valid = false;
     std::size_t pc = 0;
     Instruction instruction;
+    bool predictedTaken = false;
+    std::size_t predictedPc = 0;
 };
 
 struct IDEX {
@@ -17,6 +19,8 @@ struct IDEX {
     std::size_t pc = 0;
     Instruction instruction;
     ControlSignals signals;
+    bool predictedTaken = false;
+    std::size_t predictedPc = 0;
 };
 
 struct EXMEM {
