@@ -1,8 +1,25 @@
 # Pipelined CPU Simulator
 
-A cycle-accurate RISC-style CPU simulator written in C++.
+A cycle-accurate MIPS-like RISC CPU simulator written in C++.
 
-This project simulates both sequential execution and real 5-stage pipelined execution, focusing on core computer architecture concepts such as pipeline registers, hazards, forwarding, stalls, flushes, and branch prediction.
+This project simulates both sequential execution and real 5-stage pipelined execution while modeling core computer architecture concepts such as pipeline registers, hazards, forwarding, stalls, flushes, branch prediction, and BTB-based control flow prediction.
+
+---
+
+# Features
+
+- Sequential CPU execution mode
+- Real pipelined CPU execution mode
+- 5-stage pipeline architecture
+- Hazard detection
+- Data forwarding
+- Load-use stalls
+- Pipeline flushing
+- Dynamic branch prediction
+- Branch Target Buffer (BTB)
+- Custom MIPS-like ISA
+- Cycle-by-cycle pipeline tracing
+- CPU performance statistics
 
 ---
 
@@ -20,6 +37,12 @@ Run the simulator:
 ./cpu_simulator
 ```
 
+Run tests:
+
+```bash
+make test
+```
+
 Clean build files:
 
 ```bash
@@ -30,14 +53,18 @@ make clean
 
 # Project Architecture
 
-The project is organized around a CPU simulation core, an assembler, pipeline execution logic, and debugging/statistics utilities.
+The project is organized around a modular CPU simulation architecture.
 
 ```text
 src/
 ├── CPU.cpp
+├── CPUSequential.cpp
 ├── CPUPipeline.cpp
+├── BTB.cpp
+├── CPUStatistics.cpp
 ├── ControlUnit.cpp
 ├── HazardUnit.cpp
+├── StallUnit.cpp
 ├── ForwardingUnit.cpp
 ├── Assembler.cpp
 ├── TracePrinter.cpp
@@ -52,10 +79,12 @@ src/
 
 Executes one instruction completely before starting the next.
 
-This mode is useful for:
-- Validating instruction behavior
-- Debugging programs
-- Comparing results against pipelined execution
+Useful for:
+- Functional validation
+- Instruction debugging
+- Comparing against pipelined execution
+
+---
 
 ## Pipelined Mode
 
@@ -73,11 +102,7 @@ Where:
 - MEM — Memory Access
 - WB — Write Back
 
----
-
-# Pipeline Design
-
-The simulator uses explicit pipeline registers:
+Pipeline registers:
 
 ```text
 IF/ID
@@ -86,15 +111,57 @@ EX/MEM
 MEM/WB
 ```
 
-Each cycle computes the next state of the pipeline and updates all pipeline registers together, similar to real hardware timing behavior.
+Each cycle computes the next pipeline state and updates all pipeline registers simultaneously, similar to real hardware timing behavior.
 
-Execution behavior is controlled using decoded control signals rather than placing opcode-specific logic throughout the pipeline.
+---
+
+# Instruction Set
+
+The simulator uses a custom MIPS-like ISA.
+
+## Arithmetic / Logic
+
+- `ADD`
+- `ADDI`
+- `SUB`
+- `AND`
+- `OR`
+
+## Memory
+
+- `LW`
+- `SW`
+
+## Branch / Control Flow
+
+- `BEQ`
+- `BNE`
+- `J`
+
+## Legacy Compatibility Instructions
+
+Older custom instructions are still supported internally for backward compatibility:
+
+- `MOV`
+- `LOAD`
+- `STORE`
+- `CMP`
+- `JMP`
+- `JZ`
+- `JNZ`
+
+## Misc
+
+- `NOP`
+- `HALT`
 
 ---
 
 # Control Signals
 
-Each instruction is decoded into control signals such as:
+Instructions are decoded into control signals that determine pipeline behavior.
+
+Example:
 
 ```cpp
 struct ControlSignals {
@@ -107,43 +174,7 @@ struct ControlSignals {
 };
 ```
 
-These signals determine which actions are active in each stage.
-
-For example:
-- An arithmetic instruction enables ALU execution and register write-back.
-- A load instruction enables memory read and register write-back.
-- A store instruction enables memory write but does not write back to a register.
-- A branch or jump instruction may redirect the program counter and flush younger instructions.
-
----
-
-# Supported Instructions
-
-## Arithmetic / Logic
-
-- `MOV`
-- `ADD`
-- `ADDI`
-- `SUB`
-- `AND`
-- `OR`
-- `CMP`
-
-## Memory
-
-- `LOAD`
-- `STORE`
-
-## Control Flow
-
-- `JMP`
-- `JZ`
-- `JNZ`
-
-## Misc
-
-- `NOP`
-- `HALT`
+This design keeps execution logic modular and hardware-inspired.
 
 ---
 
@@ -153,8 +184,8 @@ For example:
 
 The simulator handles data hazards using:
 
-- Hazard detection
-- Forwarding
+- Hazard Detection Unit
+- Forwarding Unit
 - Load-use stalls
 - Register dependency checks
 
@@ -165,23 +196,35 @@ EX/MEM → EX
 MEM/WB → EX
 ```
 
+Branch instructions (`BEQ` / `BNE`) also support operand forwarding for correct comparisons during EX stage execution.
+
+---
+
 ## Control Hazards
 
 Control hazards are handled using:
 
-- Branch resolution
+- Branch resolution in EX stage
 - Program counter redirection
 - Pipeline flushing
 - Branch prediction recovery
 
 ---
 
-# Branch Prediction
+# Branch Prediction & BTB
 
-The pipelined CPU includes a dynamic 2-bit branch predictor.
+The pipelined CPU includes:
 
-The simulator tracks:
-- Branch predictions
+- Dynamic 2-bit branch predictor
+- Branch Target Buffer (BTB)
+- Prediction tracking
+- Misprediction recovery
+
+The BTB predicts future control flow targets during instruction fetch to reduce pipeline stalls caused by branches.
+
+Statistics tracked include:
+
+- Total branch predictions
 - Correct predictions
 - Mispredictions
 - Branch prediction accuracy
@@ -189,7 +232,7 @@ The simulator tracks:
 
 ---
 
-# Trace Output
+# Pipeline Trace Output
 
 The simulator prints a cycle-by-cycle pipeline trace.
 
@@ -200,10 +243,10 @@ Cycle | IF | ID | EX | MEM | WB
 --------------------------------
 1     | ADD
 2     | SUB | ADD
-3     | LOAD| SUB | ADD
+3     | LW  | SUB | ADD
 ```
 
-This makes it easier to observe how instructions move through the pipeline.
+This makes it easier to visualize instruction-level parallelism and pipeline behavior.
 
 ---
 
@@ -217,15 +260,41 @@ At the end of execution, the simulator reports:
 - Number of stalls
 - Number of flushes
 - Forwarding events
-- Branch prediction accuracy
+- Branch prediction statistics
+
+---
+
+# Example Program
+
+```asm
+ADDI R0,R0,7
+ADDI R1,R0,3
+ADD R2,R0,R1
+ADDI R3,R0,10
+
+BEQ R2,R3,equal
+
+ADDI R4,R0,-1
+J done
+
+equal:
+SW R2,10(R0)
+LW R5,10(R0)
+
+done:
+HALT
+```
 
 ---
 
 # Future Improvements
 
-Possible extensions:
+Possible future extensions:
 
+- Proper base+offset memory execution
+- Hardwired zero register (`R0`)
 - Cache simulation
+- Instruction encoding / binary loading
 - Superscalar execution
 - Out-of-order execution
 - Tomasulo algorithm
@@ -247,5 +316,6 @@ This project was built to explore:
 - Control hazards
 - Forwarding
 - Branch prediction
+- BTB design
 - Low-level system simulation
-- Hardware-inspired software design
+- Hardware-inspired software architecture
