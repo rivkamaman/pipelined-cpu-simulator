@@ -11,6 +11,7 @@ public:
     void recordFlush();
     void recordForwarding();
     void recordBranchPrediction();
+    void recordCorrectBranchPrediction();
     void recordBranchMisprediction();
     void recordBranchTaken();
     void recordBranchNotTaken();
@@ -22,6 +23,7 @@ public:
 
     int getFlushes() const;
     int getBranchPredictions() const;
+    int getCorrectBranchPredictions() const;
     int getBranchMispredictions() const;
     int getBranchesTaken() const;
     int getBranchesNotTaken() const;
@@ -33,6 +35,7 @@ private:
     int flushes = 0;
     int forwardings = 0;
     int branchPredictions = 0;
+    int correctBranchPredictions = 0;
     int branchMispredictions = 0;
     int branchesTaken = 0;
     int branchesNotTaken = 0;
