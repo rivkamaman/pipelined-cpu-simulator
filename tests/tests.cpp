@@ -82,6 +82,28 @@ void testAssemblerMipsAliasParsing() {
     assert(jump.toString() == "J 8");
 }
 
+void testAssemblerMipsBranchParsing() {
+    const Instruction beq = Assembler::parseLine("BEQ R2,R3,8");
+    assert(beq.opcode == Opcode::BEQ);
+    assert(beq.getSrc1() == 2);
+    assert(beq.getSrc2() == 3);
+    assert(beq.getImmediate() == 8);
+    assert(beq.toString() == "BEQ R2,R3,8");
+
+    const std::vector<std::string> lines = {
+        "BNE R4,R5,loop",
+        "HALT",
+        "loop:",
+        "HALT"
+    };
+    const std::vector<Instruction> program = Assembler::assembleLines(lines);
+    assert(program[0].opcode == Opcode::BNE);
+    assert(program[0].getSrc1() == 4);
+    assert(program[0].getSrc2() == 5);
+    assert(program[0].getImmediate() == 2);
+    assert(program[0].toString() == "BNE R4,R5,2");
+}
+
 void testAssemblerNopParsing() {
     const Instruction instruction = Assembler::parseLine("NOP");
 
@@ -266,6 +288,40 @@ void testJNZBranchTaken() {
     assert(cpu.getRegisterValue(2) == 0);
 }
 
+void testBEQBranchTaken() {
+    CPU cpu;
+
+    std::vector<Instruction> program = {
+        {Opcode::MOV, 0, 0, 0, 7},
+        {Opcode::MOV, 1, 0, 0, 7},
+        {Opcode::BEQ, 0, 0, 1, 4},
+        {Opcode::MOV, 2, 0, 0, 99},
+        {Opcode::HALT, 0, 0, 0, 0}
+    };
+
+    cpu.loadProgram(program);
+    cpu.run();
+
+    assert(cpu.getRegisterValue(2) == 0);
+}
+
+void testBNEBranchTaken() {
+    CPU cpu;
+
+    std::vector<Instruction> program = {
+        {Opcode::MOV, 0, 0, 0, 7},
+        {Opcode::MOV, 1, 0, 0, 3},
+        {Opcode::BNE, 0, 0, 1, 4},
+        {Opcode::MOV, 2, 0, 0, 99},
+        {Opcode::HALT, 0, 0, 0, 0}
+    };
+
+    cpu.loadProgram(program);
+    cpu.run();
+
+    assert(cpu.getRegisterValue(2) == 0);
+}
+
 void testLoadStore() {
     CPU cpu;
 
@@ -345,6 +401,27 @@ void testPipelinedWithNopsAvoidsHazard() {
     cpu.runPipelined();
 
     assert(cpu.getRegisterValue(1) == 6);
+}
+
+void testPipelinedBEQUsesForwardedOperands() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "MOV R0 7",
+        "MOV R1 7",
+        "BEQ R0,R1,target",
+        "MOV R2 99",
+        "target:",
+        "MOV R3 1",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(2) == 0);
+    assert(cpu.getRegisterValue(3) == 1);
+    assert(cpu.getStatistics().getBranchPredictions() == 1);
 }
 
 void testPipelinedBranchTakenFlushesYoungerInstructions() {
@@ -680,6 +757,7 @@ int main() {
     testAssemblerAndParsing();
     testAssemblerOrParsing();
     testAssemblerBranchParsing();
+    testAssemblerMipsBranchParsing();
     testAssemblerMipsAliasParsing();
     testAssemblerNopParsing();
     testAssemblerLabelBranchParsing();
@@ -695,11 +773,14 @@ int main() {
     testAddSub();
     testJZBranchTaken();
     testJNZBranchTaken();
+    testBEQBranchTaken();
+    testBNEBranchTaken();
     testLoadStore();
     testAddi();
     testAnd();
     testOr();
     testPipelinedWithNopsAvoidsHazard();
+    testPipelinedBEQUsesForwardedOperands();
     testPipelinedLoadStoreWithNops();
     testPipelinedBranchTakenFlushesYoungerInstructions();
     testPipelinedCorrectlyPredictedNotTakenBranchDoesNotFlush();

@@ -237,6 +237,24 @@ Instruction parseTokens(
                 Assembler::parseRegister(tokens[2]),
                 0
             );
+        case Opcode::BEQ:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::BEQ,
+                0,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                parseTarget(tokens[3], labelToIndex)
+            );
+        case Opcode::BNE:
+            requireOperandCount(tokens, 4, tokens[0]);
+            return Instruction(
+                Opcode::BNE,
+                0,
+                Assembler::parseRegister(tokens[1]),
+                Assembler::parseRegister(tokens[2]),
+                parseTarget(tokens[3], labelToIndex)
+            );
         case Opcode::LOAD:
             requireOperandCount(tokens, 3, tokens[0]);
             return Instruction(
@@ -384,6 +402,12 @@ Opcode Assembler::parseOpcode(const std::string& token) {
     }
     if (token == "CMP") {
         return Opcode::CMP;
+    }
+    if (token == "BEQ") {
+        return Opcode::BEQ;
+    }
+    if (token == "BNE") {
+        return Opcode::BNE;
     }
     if (token == "JMP") {
         return Opcode::JMP;

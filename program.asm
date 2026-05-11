@@ -1,10 +1,11 @@
-MOV R0 7
-MOV R1 3
-ADD R2 R0 R1
-MOV R3 8
-CMP R2 R3
-JZ equal
-MOV R4 -1
+ADDI R0,R0,7
+ADDI R1,R0,3
+ADD R2,R0,R1
+ADDI R3,R0,10
+
+BEQ R2,R3,equal
+
+ADDI R4,R0,-1
 J done
 
 equal:

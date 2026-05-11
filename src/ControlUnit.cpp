@@ -40,6 +40,14 @@ ControlSignals ControlUnit::decode(const Instruction& instruction) {
         case Opcode::CMP:
             signals.aluOp = ALUOp::CMP;
             break;
+        case Opcode::BEQ:
+            signals.isBranch = true;
+            signals.branchType = BranchType::BEQ;
+            break;
+        case Opcode::BNE:
+            signals.isBranch = true;
+            signals.branchType = BranchType::BNE;
+            break;
         case Opcode::JMP:
         case Opcode::J:
             signals.isJump = true;

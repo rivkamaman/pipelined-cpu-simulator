@@ -22,7 +22,10 @@ ForwardingDecision ForwardingUnit::resolve(
 }
 
 bool ForwardingUnit::readsSrc1(const IDEX& idex) {
-    return idex.signals.memWrite
+    return (idex.signals.isBranch
+            && (idex.signals.branchType == BranchType::BEQ
+                || idex.signals.branchType == BranchType::BNE))
+        || idex.signals.memWrite
         || idex.signals.aluOp == ALUOp::ADD
         || idex.signals.aluOp == ALUOp::ADDI
         || idex.signals.aluOp == ALUOp::SUB
@@ -32,7 +35,10 @@ bool ForwardingUnit::readsSrc1(const IDEX& idex) {
 }
 
 bool ForwardingUnit::readsSrc2(const IDEX& idex) {
-    return idex.signals.aluOp == ALUOp::ADD
+    return (idex.signals.isBranch
+            && (idex.signals.branchType == BranchType::BEQ
+                || idex.signals.branchType == BranchType::BNE))
+        || idex.signals.aluOp == ALUOp::ADD
         || idex.signals.aluOp == ALUOp::SUB
         || idex.signals.aluOp == ALUOp::AND
         || idex.signals.aluOp == ALUOp::OR

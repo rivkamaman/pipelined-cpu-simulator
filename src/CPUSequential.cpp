@@ -99,15 +99,27 @@ void CPU::executeWithSignals(
     }
 
     if (signals.isBranch) {
-        // Conditional branches update the PC only when the zero flag matches.
+        bool branchTaken = false;
+
         if (signals.branchType == BranchType::JZ && zeroFlag) {
-            programCounter = static_cast<std::size_t>(immediate);
-            if (controlTransferTaken != nullptr) {
-                *controlTransferTaken = true;
-            }
+            branchTaken = true;
         }
 
         if (signals.branchType == BranchType::JNZ && !zeroFlag) {
+            branchTaken = true;
+        }
+
+        if (signals.branchType == BranchType::BEQ
+            && registers.read(src1) == registers.read(src2)) {
+            branchTaken = true;
+        }
+
+        if (signals.branchType == BranchType::BNE
+            && registers.read(src1) != registers.read(src2)) {
+            branchTaken = true;
+        }
+
+        if (branchTaken) {
             programCounter = static_cast<std::size_t>(immediate);
             if (controlTransferTaken != nullptr) {
                 *controlTransferTaken = true;
