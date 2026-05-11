@@ -1,93 +1,251 @@
-# Simple RISC CPU Simulator
+# Pipelined CPU Simulator
 
-C++ project implementing a small RISC-style CPU with:
-- Sequential execution mode
-- Real pipelined execution mode (`IF -> ID -> EX -> MEM -> WB`)
-- Signal-driven datapath execution (opcode decoding is centralized in `ControlUnit`)
+A cycle-accurate RISC-style CPU simulator written in C++.
 
-## Features
+This project simulates both sequential execution and real 5-stage pipelined execution, focusing on core computer architecture concepts such as pipeline registers, hazards, forwarding, stalls, flushes, and branch prediction.
 
-- Instruction set:
-  - `MOV`, `ADD`, `ADDI`, `SUB`, `AND`, `OR`
-  - `LOAD`, `STORE`
-  - `CMP`, `JMP`, `JZ`, `JNZ`
-  - `NOP`, `HALT`
-- Assembler:
-  - Parses `.asm` text into `Instruction` objects
-  - Supports labels with two-pass parsing
-- Trace output:
-  - Sequential mode prints cycle/register state and pipeline-style trace
-  - Pipelined mode prints real per-cycle pipeline state:
-    - `Cycle | IF | ID | EX | MEM | WB`
-  - Pipeline runs also print a final CPU statistics summary with cycles, completed instructions, CPI, stalls, flushes, and forwarding events
+---
 
-## Architecture
+# How to Run
 
-- `ControlUnit::decode()` is the only opcode-dependent stage.
-- CPU execute behavior is signal-driven.
-- ALU is separate from control and CPU flow logic.
-- Hazard logic is split into focused units:
-  - `HazardUnit` detects RAW dependencies for diagnostics
-  - `ForwardingUnit` resolves ALU/register RAW hazards by bypassing from `EXMEM` or `MEMWB`
-  - `StallUnit` inserts a one-cycle bubble for load-use hazards
-  - `ControlHazardUnit` resolves jumps/branches and requests pipeline flushes
-  - `CPUStatistics` collects execution counters during pipelined runs
+Build the project:
 
-## Execution Modes
-
-### 1. Sequential mode
-
-- Uses `CPU::run()` / `CPU::step()`.
-- Executes one instruction per step.
-- Existing sequential behavior remains unchanged.
-
-### 2. Pipelined mode (5-stage)
-
-- Uses `CPU::runPipelined()` / `CPU::stepPipelined()`.
-- Stages:
-  1. IF fetches instruction
-  2. ID decodes control signals
-  3. EX computes ALU/address/branch decisions
-  4. MEM performs memory access
-  5. WB writes register results
-
-### Current pipeline constraints
-
-- RAW hazards are detected and printed as warnings.
-- ALU/register RAW hazards are handled with forwarding from `EXMEM` and `MEMWB`.
-- Load-use hazards are handled with a one-cycle stall:
-  - `IFID` is frozen
-  - PC is frozen by skipping fetch
-  - a bubble is inserted into `IDEX`
-- Taken jumps/branches are handled with EX-stage flush:
-  - wrong-path `IFID` / `IDEX` work is cleared
-  - older `EXMEM` / `MEMWB` work drains normally
-- No branch prediction
-
-Forwarding does not remove every possible delay: an immediate consumer after `LOAD` still needs the automatic load-use stall because loaded data is not available until after MEM.
-
-### Pipeline statistics
-
-At the end of a pipelined trace, the simulator prints:
-
-```text
-=== CPU Statistics ===
-Cycles:       10
-Instructions: 4
-CPI:          2.50
-Stalls:       1
-Flushes:      0
-Forwardings:  2
+```bash
+make
 ```
 
-## Build and Run
+Run the simulator:
 
-- `make run` — build and run main program
-- `make test` — build and run test suite
+```bash
+./cpu_simulator
+```
 
-## Testing
+Clean build files:
 
-Tests are implemented with `assert` and include:
-- assembler parsing checks
-- sequential execution checks
-- pipelined execution checks (ALU, LOAD/STORE, forwarding, load-use stalls, branch/jump flush, HALT drain)
+```bash
+make clean
+```
+
+---
+
+# Project Architecture
+
+The project is organized around a CPU simulation core, an assembler, pipeline execution logic, and debugging/statistics utilities.
+
+```text
+src/
+├── CPU.cpp
+├── CPUPipeline.cpp
+├── ControlUnit.cpp
+├── HazardUnit.cpp
+├── ForwardingUnit.cpp
+├── Assembler.cpp
+├── TracePrinter.cpp
+└── main.cpp
+```
+
+---
+
+# Execution Modes
+
+## Sequential Mode
+
+Executes one instruction completely before starting the next.
+
+This mode is useful for:
+- Validating instruction behavior
+- Debugging programs
+- Comparing results against pipelined execution
+
+## Pipelined Mode
+
+Simulates a real 5-stage CPU pipeline:
+
+```text
+IF → ID → EX → MEM → WB
+```
+
+Where:
+
+- IF — Instruction Fetch
+- ID — Instruction Decode / Register Fetch
+- EX — Execute / ALU
+- MEM — Memory Access
+- WB — Write Back
+
+---
+
+# Pipeline Design
+
+The simulator uses explicit pipeline registers:
+
+```text
+IF/ID
+ID/EX
+EX/MEM
+MEM/WB
+```
+
+Each cycle computes the next state of the pipeline and updates all pipeline registers together, similar to real hardware timing behavior.
+
+Execution behavior is controlled using decoded control signals rather than placing opcode-specific logic throughout the pipeline.
+
+---
+
+# Control Signals
+
+Each instruction is decoded into control signals such as:
+
+```cpp
+struct ControlSignals {
+    bool regWrite;
+    bool memRead;
+    bool memWrite;
+    bool isBranch;
+    bool isJump;
+    ALUOp aluOp;
+};
+```
+
+These signals determine which actions are active in each stage.
+
+For example:
+- An arithmetic instruction enables ALU execution and register write-back.
+- A load instruction enables memory read and register write-back.
+- A store instruction enables memory write but does not write back to a register.
+- A branch or jump instruction may redirect the program counter and flush younger instructions.
+
+---
+
+# Supported Instructions
+
+## Arithmetic / Logic
+
+- `MOV`
+- `ADD`
+- `ADDI`
+- `SUB`
+- `AND`
+- `OR`
+- `CMP`
+
+## Memory
+
+- `LOAD`
+- `STORE`
+
+## Control Flow
+
+- `JMP`
+- `JZ`
+- `JNZ`
+
+## Misc
+
+- `NOP`
+- `HALT`
+
+---
+
+# Hazard Handling
+
+## Data Hazards
+
+The simulator handles data hazards using:
+
+- Hazard detection
+- Forwarding
+- Load-use stalls
+- Register dependency checks
+
+Supported forwarding paths:
+
+```text
+EX/MEM → EX
+MEM/WB → EX
+```
+
+## Control Hazards
+
+Control hazards are handled using:
+
+- Branch resolution
+- Program counter redirection
+- Pipeline flushing
+- Branch prediction recovery
+
+---
+
+# Branch Prediction
+
+The pipelined CPU includes a dynamic 2-bit branch predictor.
+
+The simulator tracks:
+- Branch predictions
+- Correct predictions
+- Mispredictions
+- Branch prediction accuracy
+- Flushes caused by incorrect predictions
+
+---
+
+# Trace Output
+
+The simulator prints a cycle-by-cycle pipeline trace.
+
+Example:
+
+```text
+Cycle | IF | ID | EX | MEM | WB
+--------------------------------
+1     | ADD
+2     | SUB | ADD
+3     | LOAD| SUB | ADD
+```
+
+This makes it easier to observe how instructions move through the pipeline.
+
+---
+
+# Statistics
+
+At the end of execution, the simulator reports:
+
+- Total cycles
+- Completed instructions
+- CPI
+- Number of stalls
+- Number of flushes
+- Forwarding events
+- Branch prediction accuracy
+
+---
+
+# Future Improvements
+
+Possible extensions:
+
+- Cache simulation
+- Superscalar execution
+- Out-of-order execution
+- Tomasulo algorithm
+- Scoreboarding
+- Multi-level branch prediction
+- Graph-based pipeline visualization
+- Verilog implementation for hardware comparison
+
+---
+
+# Learning Goals
+
+This project was built to explore:
+
+- Computer architecture
+- CPU pipeline execution
+- Instruction-level parallelism
+- Data hazards
+- Control hazards
+- Forwarding
+- Branch prediction
+- Low-level system simulation
+- Hardware-inspired software design
