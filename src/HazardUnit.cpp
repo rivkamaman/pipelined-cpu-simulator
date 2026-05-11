@@ -36,6 +36,11 @@ bool HazardUnit::readsRegister(const Instruction& instruction, int reg) {
         return instruction.getSrc1() == reg;
     }
 
+    if (signals.isBranch
+        && (signals.branchType == BranchType::BEQ || signals.branchType == BranchType::BNE)) {
+        return instruction.getSrc1() == reg || instruction.getSrc2() == reg;
+    }
+
     switch (signals.aluOp) {
         case ALUOp::ADD:
         case ALUOp::SUB:

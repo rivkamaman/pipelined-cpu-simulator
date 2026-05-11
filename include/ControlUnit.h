@@ -18,7 +18,9 @@ enum class ALUOp {
 enum class BranchType {
     NONE,
     JZ,
-    JNZ
+    JNZ,
+    BEQ,
+    BNE
 };
 
 // Control lines produced by the control unit for one instruction.

@@ -236,6 +236,14 @@ EXMEM CPU::executeStage(const IDEX& input) {
             actualTaken = true;
         }
 
+        if (input.signals.branchType == BranchType::BEQ && operandA == operandB) {
+            actualTaken = true;
+        }
+
+        if (input.signals.branchType == BranchType::BNE && operandA != operandB) {
+            actualTaken = true;
+        }
+
         if (actualTaken) {
             stats.recordBranchTaken();
         } else {

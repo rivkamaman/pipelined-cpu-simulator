@@ -16,6 +16,8 @@ enum class Opcode {
     LW,
     SW,
     CMP,
+    BEQ,
+    BNE,
     JMP,
     J,
     JZ,

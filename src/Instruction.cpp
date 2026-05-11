@@ -67,6 +67,12 @@ std::string Instruction::toString() const {
         case Opcode::CMP:
             output << "CMP R" << src1 << ",R" << src2;
             break;
+        case Opcode::BEQ:
+            output << "BEQ R" << src1 << ",R" << src2 << "," << immediate;
+            break;
+        case Opcode::BNE:
+            output << "BNE R" << src1 << ",R" << src2 << "," << immediate;
+            break;
         case Opcode::JMP:
             output << "JMP " << immediate;
             break;
