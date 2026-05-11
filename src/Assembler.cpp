@@ -11,7 +11,12 @@ namespace {
 std::vector<std::string> tokenize(const std::string& line) {
     // Ignore everything after '#', then split the remaining source on whitespace.
     const std::size_t commentStart = line.find('#');
-    const std::string source = line.substr(0, commentStart);
+    std::string source = line.substr(0, commentStart);
+    for (char& character : source) {
+        if (character == ',') {
+            character = ' ';
+        }
+    }
 
     std::istringstream input(source);
     std::vector<std::string> tokens;
@@ -124,6 +129,38 @@ int parseTarget(
     return label->second;
 }
 
+int parseMemoryBase(const std::string& token) {
+    const std::size_t openParen = token.find('(');
+    if (openParen == std::string::npos) {
+        return 0;
+    }
+
+    const std::size_t closeParen = token.find(')', openParen + 1);
+    if (closeParen == std::string::npos || closeParen != token.size() - 1) {
+        throw std::invalid_argument("Invalid memory operand: " + token);
+    }
+
+    const std::string baseRegister = token.substr(openParen + 1, closeParen - openParen - 1);
+    return Assembler::parseRegister(baseRegister);
+}
+
+int parseMemoryOffset(const std::string& token) {
+    const std::size_t openParen = token.find('(');
+    if (openParen == std::string::npos) {
+        return parseInteger(token, "address");
+    }
+
+    const std::size_t closeParen = token.find(')', openParen + 1);
+    if (closeParen == std::string::npos || closeParen != token.size() - 1) {
+        throw std::invalid_argument("Invalid memory operand: " + token);
+    }
+
+    const std::string offset = token.substr(0, openParen);
+    const std::string baseRegister = token.substr(openParen + 1, closeParen - openParen - 1);
+    Assembler::parseRegister(baseRegister);
+    return parseInteger(offset, "address");
+}
+
 Instruction parseTokens(
     const std::vector<std::string>& sourceTokens,
     const std::unordered_map<std::string, int>& labelToIndex
@@ -209,6 +246,15 @@ Instruction parseTokens(
                 0,
                 parseInteger(tokens[2], "address")
             );
+        case Opcode::LW:
+            requireOperandCount(tokens, 3, tokens[0]);
+            return Instruction(
+                Opcode::LW,
+                Assembler::parseRegister(tokens[1]),
+                parseMemoryBase(tokens[2]),
+                0,
+                parseMemoryOffset(tokens[2])
+            );
         case Opcode::STORE:
             requireOperandCount(tokens, 3, tokens[0]);
             return Instruction(
@@ -218,9 +264,21 @@ Instruction parseTokens(
                 0,
                 parseInteger(tokens[2], "address")
             );
+        case Opcode::SW:
+            requireOperandCount(tokens, 3, tokens[0]);
+            return Instruction(
+                Opcode::SW,
+                0,
+                Assembler::parseRegister(tokens[1]),
+                parseMemoryBase(tokens[2]),
+                parseMemoryOffset(tokens[2])
+            );
         case Opcode::JMP:
             requireOperandCount(tokens, 2, tokens[0]);
             return Instruction(Opcode::JMP, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
+        case Opcode::J:
+            requireOperandCount(tokens, 2, tokens[0]);
+            return Instruction(Opcode::J, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
         case Opcode::JZ:
             requireOperandCount(tokens, 2, tokens[0]);
             return Instruction(Opcode::JZ, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
@@ -315,14 +373,23 @@ Opcode Assembler::parseOpcode(const std::string& token) {
     if (token == "LOAD") {
         return Opcode::LOAD;
     }
+    if (token == "LW") {
+        return Opcode::LW;
+    }
     if (token == "STORE") {
         return Opcode::STORE;
+    }
+    if (token == "SW") {
+        return Opcode::SW;
     }
     if (token == "CMP") {
         return Opcode::CMP;
     }
     if (token == "JMP") {
         return Opcode::JMP;
+    }
+    if (token == "J") {
+        return Opcode::J;
     }
     if (token == "JZ") {
         return Opcode::JZ;
