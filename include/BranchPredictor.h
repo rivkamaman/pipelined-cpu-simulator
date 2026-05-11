@@ -16,16 +16,16 @@ class BranchPredictor {
 public:
     BranchPrediction predict(
         std::size_t pc,
-        const Instruction& instruction,
         const ControlSignals& signals
     );
 
-    void update(std::size_t pc, bool actualTaken);
+    void update(std::size_t pc, std::size_t targetPc, bool actualTaken);
 
     void reset();
 
 private:
-    std::unordered_map<std::size_t, int> table;
+    std::unordered_map<std::size_t, std::size_t> branchTargetBuffer;
+    std::unordered_map<std::size_t, int> predictionState;
 };
 
 #endif

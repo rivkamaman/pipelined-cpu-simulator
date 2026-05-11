@@ -133,20 +133,12 @@ IFID CPU::fetchStage() {
     output.instruction = program[programCounter];
 
     const ControlSignals signals = ControlUnit::decode(output.instruction);
-    if (signals.isJump) {
-        output.predictedTaken = false;
-        output.predictedPc = output.pc + 1;
-        programCounter = output.predictedPc;
-        return output;
-    }
-
-    if (signals.isBranch) {
+    if (signals.isBranch || signals.isJump) {
         stats.recordBranchPrediction();
     }
 
     const BranchPrediction prediction = branchPredictor.predict(
         output.pc,
-        output.instruction,
         signals
     );
     output.predictedTaken = prediction.predictedTaken;
@@ -213,14 +205,23 @@ EXMEM CPU::executeStage(const IDEX& input) {
 
     if (input.signals.isJump) {
         const ControlHazardDecision control = ControlHazardUnit::resolve(input, zeroFlag);
+        std::size_t correctPc = input.pc + 1;
         if (control.redirectPc) {
-            programCounter = control.targetPc;
+            correctPc = control.targetPc;
         }
-        stats.recordFlush();
-        // JMP is unconditional: fetch follows the sequential path until EX
-        // redirects it, so younger IF/ID and ID/EX work must be flushed.
-        pipelineFlushRequested = control.flush;
-        fetchHalted = false;
+
+        branchPredictor.update(input.pc, correctPc, true);
+
+        if (input.predictedPc != correctPc) {
+            stats.recordBranchMisprediction();
+            stats.recordFlush();
+            pipelineFlushRequested = control.flush;
+            programCounter = correctPc;
+            fetchHalted = false;
+        } else {
+            stats.recordCorrectBranchPrediction();
+        }
+
         output.valid = false;
         return output;
     }
@@ -250,11 +251,15 @@ EXMEM CPU::executeStage(const IDEX& input) {
             stats.recordBranchNotTaken();
         }
 
-        const std::size_t correctPc = actualTaken
-            ? static_cast<std::size_t>(input.instruction.getImmediate())
-            : input.pc + 1;
+        std::size_t correctPc = input.pc + 1;
+        if (actualTaken) {
+            correctPc = static_cast<std::size_t>(input.instruction.getImmediate());
+        }
 
-        branchPredictor.update(input.pc, actualTaken);
+        const std::size_t targetPc =
+            static_cast<std::size_t>(input.instruction.getImmediate());
+
+        branchPredictor.update(input.pc, targetPc, actualTaken);
 
         if (input.predictedPc != correctPc) {
             // A misprediction means IF and ID followed the wrong PC. Flush only
@@ -265,6 +270,8 @@ EXMEM CPU::executeStage(const IDEX& input) {
             pipelineFlushRequested = true;
             programCounter = correctPc;
             fetchHalted = false;
+        } else {
+            stats.recordCorrectBranchPrediction();
         }
 
         // Branches resolve in EX and do not write registers or memory.

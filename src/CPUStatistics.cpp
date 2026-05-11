@@ -10,6 +10,7 @@ void CPUStatistics::reset() {
     flushes = 0;
     forwardings = 0;
     branchPredictions = 0;
+    correctBranchPredictions = 0;
     branchMispredictions = 0;
     branchesTaken = 0;
     branchesNotTaken = 0;
@@ -39,6 +40,10 @@ void CPUStatistics::recordBranchPrediction() {
     ++branchPredictions;
 }
 
+void CPUStatistics::recordCorrectBranchPrediction() {
+    ++correctBranchPredictions;
+}
+
 void CPUStatistics::recordBranchMisprediction() {
     ++branchMispredictions;
 }
@@ -56,15 +61,19 @@ bool CPUStatistics::hasCycles() const {
 }
 
 double CPUStatistics::cpi() const {
-    return instructions == 0
-        ? 0.0
-        : static_cast<double>(cycles) / instructions;
+    if (instructions == 0) {
+        return 0.0;
+    }
+
+    return static_cast<double>(cycles) / instructions;
 }
 
 double CPUStatistics::branchAccuracy() const {
-    return branchPredictions == 0
-        ? 0.0
-        : 100.0 * (branchPredictions - branchMispredictions) / branchPredictions;
+    if (branchPredictions == 0) {
+        return 0.0;
+    }
+
+    return 100.0 * correctBranchPredictions / branchPredictions;
 }
 
 int CPUStatistics::getFlushes() const {
@@ -73,6 +82,10 @@ int CPUStatistics::getFlushes() const {
 
 int CPUStatistics::getBranchPredictions() const {
     return branchPredictions;
+}
+
+int CPUStatistics::getCorrectBranchPredictions() const {
+    return correctBranchPredictions;
 }
 
 int CPUStatistics::getBranchMispredictions() const {
@@ -96,6 +109,7 @@ void CPUStatistics::print() const {
               << std::left << std::setw(24) << "Flushes:" << flushes << '\n'
               << std::left << std::setw(24) << "Forwardings:" << forwardings << '\n'
               << std::left << std::setw(24) << "Branch Predictions:" << branchPredictions << '\n'
+              << std::left << std::setw(24) << "Correct Predictions:" << correctBranchPredictions << '\n'
               << std::left << std::setw(24) << "Branch Mispredictions:" << branchMispredictions << '\n'
               << std::left << std::setw(24) << "Branch Accuracy:"
               << std::fixed << std::setprecision(2) << branchAccuracy() << "%\n"
