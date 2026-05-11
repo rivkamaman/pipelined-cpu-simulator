@@ -61,6 +61,27 @@ void testAssemblerBranchParsing() {
     assert(instruction.getImmediate() == 8);
 }
 
+void testAssemblerMipsAliasParsing() {
+    const Instruction load = Assembler::parseLine("LW R5,10(R0)");
+    assert(load.opcode == Opcode::LW);
+    assert(load.dst == 5);
+    assert(load.getSrc1() == 0);
+    assert(load.getImmediate() == 10);
+    assert(load.toString() == "LW R5,10(R0)");
+
+    const Instruction store = Assembler::parseLine("SW R2,10(R0)");
+    assert(store.opcode == Opcode::SW);
+    assert(store.getSrc1() == 2);
+    assert(store.getSrc2() == 0);
+    assert(store.getImmediate() == 10);
+    assert(store.toString() == "SW R2,10(R0)");
+
+    const Instruction jump = Assembler::parseLine("J 8");
+    assert(jump.opcode == Opcode::J);
+    assert(jump.getImmediate() == 8);
+    assert(jump.toString() == "J 8");
+}
+
 void testAssemblerNopParsing() {
     const Instruction instruction = Assembler::parseLine("NOP");
 
@@ -659,6 +680,7 @@ int main() {
     testAssemblerAndParsing();
     testAssemblerOrParsing();
     testAssemblerBranchParsing();
+    testAssemblerMipsAliasParsing();
     testAssemblerNopParsing();
     testAssemblerLabelBranchParsing();
     testAssemblerAssembleLines();

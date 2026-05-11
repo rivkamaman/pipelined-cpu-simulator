@@ -3,9 +3,13 @@ MOV R1 3
 ADD R2 R0 R1
 MOV R3 8
 CMP R2 R3
-JZ 8
+JZ equal
 MOV R4 -1
-JMP 9
-STORE R2 10
-LOAD R5 10
+J done
+
+equal:
+SW R2,10(R0)
+LW R5,10(R0)
+
+done:
 HALT

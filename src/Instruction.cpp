@@ -55,14 +55,23 @@ std::string Instruction::toString() const {
         case Opcode::LOAD:
             output << "LOAD R" << dst << "," << immediate;
             break;
+        case Opcode::LW:
+            output << "LW R" << dst << "," << immediate << "(R" << src1 << ")";
+            break;
         case Opcode::STORE:
             output << "STORE R" << src1 << "," << immediate;
+            break;
+        case Opcode::SW:
+            output << "SW R" << src1 << "," << immediate << "(R" << src2 << ")";
             break;
         case Opcode::CMP:
             output << "CMP R" << src1 << ",R" << src2;
             break;
         case Opcode::JMP:
             output << "JMP " << immediate;
+            break;
+        case Opcode::J:
+            output << "J " << immediate;
             break;
         case Opcode::JZ:
             output << "JZ " << immediate;

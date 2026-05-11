@@ -29,16 +29,19 @@ ControlSignals ControlUnit::decode(const Instruction& instruction) {
             signals.aluOp = ALUOp::OR;
             break;
         case Opcode::LOAD:
+        case Opcode::LW:
             signals.memRead = true;
             signals.regWrite = true;
             break;
         case Opcode::STORE:
+        case Opcode::SW:
             signals.memWrite = true;
             break;
         case Opcode::CMP:
             signals.aluOp = ALUOp::CMP;
             break;
         case Opcode::JMP:
+        case Opcode::J:
             signals.isJump = true;
             break;
         case Opcode::JZ:
