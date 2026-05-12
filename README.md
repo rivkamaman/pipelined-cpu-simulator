@@ -72,21 +72,130 @@ Forwarding does not remove every possible delay: an immediate consumer after `LW
 At the end of a pipelined trace, the simulator prints:
 
 ```text
-=== CPU Statistics ===
-Cycles:       10
-Instructions: 4
-CPI:          2.50
-Stalls:       1
-Flushes:      0
-Forwardings:  2
+src/
+├── CPU.cpp
+├── CPUSequential.cpp
+├── CPUPipeline.cpp
+├── BranchPredictor.cpp
+├── ControlUnit.cpp
+├── HazardUnit.cpp
+├── StallUnit.cpp
+├── ForwardingUnit.cpp
+├── Assembler.cpp
+├── TracePrinter.cpp
+└── main.cpp
 ```
 
-## Build and Run
+---
 
-- `make run` — build and run main program
-- `make test` — build and run test suite
+# Instruction Set
 
-## Testing
+## Arithmetic / Logic
+
+- `ADD`
+- `ADDI`
+- `SUB`
+- `AND`
+- `OR`
+
+## Memory
+
+- `LW`
+- `SW`
+
+## Branch / Control Flow
+
+- `BEQ`
+- `BNE`
+- `J`
+
+## Misc
+
+- `NOP`
+- `HALT`
+
+---
+
+# Hazard Handling
+
+## Data Hazards
+
+Handled using:
+- Hazard Detection Unit
+- Forwarding Unit
+- Load-use stalls
+
+Forwarding paths:
+
+```text
+EX/MEM → EX
+MEM/WB → EX
+```
+
+## Control Hazards
+
+Handled using:
+- Branch resolution in EX stage
+- Pipeline flushing
+- Branch prediction recovery
+
+---
+
+# Branch Prediction & BTB
+
+The simulator includes:
+- Dynamic 2-bit branch predictor
+- Branch Target Buffer (BTB)
+- Speculative instruction fetch
+- Misprediction recovery
+
+Prediction states:
+
+```text
+0 = Strongly Not Taken
+1 = Weakly Not Taken
+2 = Weakly Taken
+3 = Strongly Taken
+```
+
+---
+
+# Example Program
+
+```asm
+ADDI R0,R0,7
+ADDI R1,R0,3
+ADD R2,R0,R1
+ADDI R3,R0,10
+
+BEQ R2,R3,equal
+
+ADDI R4,R0,-1
+J done
+
+equal:
+SW R2,10(R0)
+LW R5,10(R0)
+
+done:
+HALT
+```
+
+---
+
+# Statistics
+
+The simulator tracks:
+- Total cycles
+- CPI
+- Stalls
+- Flushes
+- Forwarding events
+- Branch prediction accuracy
+
+---
+
+# Future Improvements
 
 Tests are implemented with `assert` and include:
 - assembler parsing checks
