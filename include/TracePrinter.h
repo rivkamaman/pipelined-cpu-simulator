@@ -12,13 +12,12 @@
 // Formats and prints the simulator trace after each CPU cycle.
 class TracePrinter {
 public:
-    // Print one cycle, including PC, instruction text, registers, and zero flag.
+    // Print one cycle, including PC, instruction text, and registers.
     static void printCycle(
         std::size_t cycle,
         std::size_t pc,
         const Instruction& instruction,
-        const Registers& registers,
-        bool zeroFlag
+        const Registers& registers
     );
 
     // Print the IF/ID/EX/MEM/WB pipeline history table.

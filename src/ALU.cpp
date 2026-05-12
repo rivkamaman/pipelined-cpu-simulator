@@ -24,8 +24,3 @@ int ALU::bitwiseOr(int left, int right) const {
     // OR datapath operation.
     return left | right;
 }
-
-bool ALU::equal(int left, int right) const {
-    // CMP updates the zero flag from this comparison.
-    return left == right;
-}

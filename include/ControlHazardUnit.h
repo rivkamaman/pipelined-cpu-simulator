@@ -13,7 +13,7 @@ struct ControlHazardDecision {
 
 class ControlHazardUnit {
 public:
-    static ControlHazardDecision resolve(const IDEX& idex, bool zeroFlag);
+    static ControlHazardDecision resolve(const IDEX& idex);
 };
 
 #endif

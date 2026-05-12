@@ -8,9 +8,9 @@ C++ project implementing a small RISC-style CPU with:
 ## Features
 
 - Instruction set:
-  - `MOV`, `ADD`, `ADDI`, `SUB`, `AND`, `OR`
-  - `LOAD`, `STORE`
-  - `CMP`, `JMP`, `JZ`, `JNZ`
+  - `ADD`, `ADDI`, `SUB`, `AND`, `OR`
+  - `LW`, `SW`
+  - `BEQ`, `BNE`, `J`
   - `NOP`, `HALT`
 - Assembler:
   - Parses `.asm` text into `Instruction` objects
@@ -23,7 +23,8 @@ C++ project implementing a small RISC-style CPU with:
 
 ## Architecture
 
-- `ControlUnit::decode()` is the only opcode-dependent stage.
+- `ControlUnit::decode()` centralizes control signal generation.
+- `Instruction` exposes semantic helpers such as register read/write and memory/control-flow behavior.
 - CPU execute behavior is signal-driven.
 - ALU is separate from control and CPU flow logic.
 - Hazard logic is split into focused units:
@@ -59,12 +60,12 @@ C++ project implementing a small RISC-style CPU with:
   - `IFID` is frozen
   - PC is frozen by skipping fetch
   - a bubble is inserted into `IDEX`
-- Taken jumps/branches are handled with EX-stage flush:
+- Branch and jump prediction uses a small BTB with 2-bit counters in pipelined mode.
+- Mispredicted jumps/branches are handled with EX-stage flush:
   - wrong-path `IFID` / `IDEX` work is cleared
   - older `EXMEM` / `MEMWB` work drains normally
-- No branch prediction
 
-Forwarding does not remove every possible delay: an immediate consumer after `LOAD` still needs the automatic load-use stall because loaded data is not available until after MEM.
+Forwarding does not remove every possible delay: an immediate consumer after `LW` still needs the automatic load-use stall because loaded data is not available until after MEM.
 
 ### Pipeline statistics
 
@@ -90,4 +91,4 @@ Forwardings:  2
 Tests are implemented with `assert` and include:
 - assembler parsing checks
 - sequential execution checks
-- pipelined execution checks (ALU, LOAD/STORE, forwarding, load-use stalls, branch/jump flush, HALT drain)
+- pipelined execution checks (ALU, LW/SW, forwarding, load-use stalls, branch/jump flush, BTB prediction, HALT drain)

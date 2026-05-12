@@ -12,37 +12,13 @@ ForwardingDecision ForwardingUnit::resolve(
     }
 
     // Resolve only operands the instruction really reads.
-    if (readsSrc1(idex)) {
+    if (idex.instruction.readsSrc1()) {
         decision.forwardA = resolveSource(idex.instruction.getSrc1(), exmem, memwb);
     }
-    if (readsSrc2(idex)) {
+    if (idex.instruction.readsSrc2()) {
         decision.forwardB = resolveSource(idex.instruction.getSrc2(), exmem, memwb);
     }
     return decision;
-}
-
-bool ForwardingUnit::readsSrc1(const IDEX& idex) {
-    return (idex.signals.isBranch
-            && (idex.signals.branchType == BranchType::BEQ
-                || idex.signals.branchType == BranchType::BNE))
-        || idex.signals.memWrite
-        || idex.signals.aluOp == ALUOp::ADD
-        || idex.signals.aluOp == ALUOp::ADDI
-        || idex.signals.aluOp == ALUOp::SUB
-        || idex.signals.aluOp == ALUOp::AND
-        || idex.signals.aluOp == ALUOp::OR
-        || idex.signals.aluOp == ALUOp::CMP;
-}
-
-bool ForwardingUnit::readsSrc2(const IDEX& idex) {
-    return (idex.signals.isBranch
-            && (idex.signals.branchType == BranchType::BEQ
-                || idex.signals.branchType == BranchType::BNE))
-        || idex.signals.aluOp == ALUOp::ADD
-        || idex.signals.aluOp == ALUOp::SUB
-        || idex.signals.aluOp == ALUOp::AND
-        || idex.signals.aluOp == ALUOp::OR
-        || idex.signals.aluOp == ALUOp::CMP;
 }
 
 int ForwardingUnit::resolveSource(int src, const EXMEM& exmem, const MEMWB& memwb) {
@@ -60,14 +36,14 @@ int ForwardingUnit::resolveSource(int src, const EXMEM& exmem, const MEMWB& memw
 
 bool ForwardingUnit::canForwardFromExmem(const EXMEM& exmem, int src) {
     return exmem.valid
-        && exmem.signals.regWrite
+        && exmem.instruction.writesRegister()
         // A load's EX/MEM value is its address; the loaded data exists after MEM.
-        && !exmem.signals.memRead
+        && !exmem.instruction.isMemoryRead()
         && exmem.instruction.dst == src;
 }
 
 bool ForwardingUnit::canForwardFromMemwb(const MEMWB& memwb, int src) {
     return memwb.valid
-        && memwb.signals.regWrite
+        && memwb.instruction.writesRegister()
         && memwb.instruction.dst == src;
 }

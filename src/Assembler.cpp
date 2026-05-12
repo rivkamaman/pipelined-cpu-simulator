@@ -174,15 +174,6 @@ Instruction parseTokens(
     const Opcode opcode = Assembler::parseOpcode(tokens[0]);
 
     switch (opcode) {
-        case Opcode::MOV:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::MOV,
-                Assembler::parseRegister(tokens[1]),
-                0,
-                0,
-                parseInteger(tokens[2], "immediate")
-            );
         case Opcode::ADD:
             requireOperandCount(tokens, 4, tokens[0]);
             return Instruction(
@@ -228,15 +219,6 @@ Instruction parseTokens(
                 Assembler::parseRegister(tokens[3]),
                 0
             );
-        case Opcode::CMP:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::CMP,
-                0,
-                Assembler::parseRegister(tokens[1]),
-                Assembler::parseRegister(tokens[2]),
-                0
-            );
         case Opcode::BEQ:
             requireOperandCount(tokens, 4, tokens[0]);
             return Instruction(
@@ -255,15 +237,6 @@ Instruction parseTokens(
                 Assembler::parseRegister(tokens[2]),
                 parseTarget(tokens[3], labelToIndex)
             );
-        case Opcode::LOAD:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::LOAD,
-                Assembler::parseRegister(tokens[1]),
-                0,
-                0,
-                parseInteger(tokens[2], "address")
-            );
         case Opcode::LW:
             requireOperandCount(tokens, 3, tokens[0]);
             return Instruction(
@@ -272,15 +245,6 @@ Instruction parseTokens(
                 parseMemoryBase(tokens[2]),
                 0,
                 parseMemoryOffset(tokens[2])
-            );
-        case Opcode::STORE:
-            requireOperandCount(tokens, 3, tokens[0]);
-            return Instruction(
-                Opcode::STORE,
-                0,
-                Assembler::parseRegister(tokens[1]),
-                0,
-                parseInteger(tokens[2], "address")
             );
         case Opcode::SW:
             requireOperandCount(tokens, 3, tokens[0]);
@@ -291,18 +255,9 @@ Instruction parseTokens(
                 parseMemoryBase(tokens[2]),
                 parseMemoryOffset(tokens[2])
             );
-        case Opcode::JMP:
-            requireOperandCount(tokens, 2, tokens[0]);
-            return Instruction(Opcode::JMP, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
         case Opcode::J:
             requireOperandCount(tokens, 2, tokens[0]);
             return Instruction(Opcode::J, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
-        case Opcode::JZ:
-            requireOperandCount(tokens, 2, tokens[0]);
-            return Instruction(Opcode::JZ, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
-        case Opcode::JNZ:
-            requireOperandCount(tokens, 2, tokens[0]);
-            return Instruction(Opcode::JNZ, 0, 0, 0, parseTarget(tokens[1], labelToIndex));
         case Opcode::NOP:
             requireOperandCount(tokens, 1, tokens[0]);
             return Instruction(Opcode::NOP);
@@ -370,9 +325,6 @@ Instruction Assembler::parseLine(
 }
 
 Opcode Assembler::parseOpcode(const std::string& token) {
-    if (token == "MOV") {
-        return Opcode::MOV;
-    }
     if (token == "ADD") {
         return Opcode::ADD;
     }
@@ -388,20 +340,11 @@ Opcode Assembler::parseOpcode(const std::string& token) {
     if (token == "OR") {
         return Opcode::OR;
     }
-    if (token == "LOAD") {
-        return Opcode::LOAD;
-    }
     if (token == "LW") {
         return Opcode::LW;
     }
-    if (token == "STORE") {
-        return Opcode::STORE;
-    }
     if (token == "SW") {
         return Opcode::SW;
-    }
-    if (token == "CMP") {
-        return Opcode::CMP;
     }
     if (token == "BEQ") {
         return Opcode::BEQ;
@@ -409,17 +352,8 @@ Opcode Assembler::parseOpcode(const std::string& token) {
     if (token == "BNE") {
         return Opcode::BNE;
     }
-    if (token == "JMP") {
-        return Opcode::JMP;
-    }
     if (token == "J") {
         return Opcode::J;
-    }
-    if (token == "JZ") {
-        return Opcode::JZ;
-    }
-    if (token == "JNZ") {
-        return Opcode::JNZ;
     }
     if (token == "NOP") {
         return Opcode::NOP;

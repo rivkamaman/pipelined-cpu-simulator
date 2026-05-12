@@ -1,12 +1,11 @@
-MOV R0 7
-MOV R1 7
-CMP R0 R1
-JZ equal
-MOV R2 -1
-JMP end
+ADDI R1,R0,7
+ADDI R2,R0,7
+BEQ R1,R2,equal
+ADDI R3,R0,-1
+J end
 
 equal:
-MOV R2 42
+ADDI R3,R0,42
 
 end:
 HALT

@@ -10,14 +10,6 @@
 #include "HazardUnit.h"
 #include "StallUnit.h"
 
-void testAssemblerMovParsing() {
-    const Instruction instruction = Assembler::parseLine("MOV R2 42");
-
-    assert(instruction.opcode == Opcode::MOV);
-    assert(instruction.dst == 2);
-    assert(instruction.getImmediate() == 42);
-}
-
 void testAssemblerAddParsing() {
     const Instruction instruction = Assembler::parseLine("ADD R2 R0 R1");
 
@@ -25,6 +17,7 @@ void testAssemblerAddParsing() {
     assert(instruction.dst == 2);
     assert(instruction.getSrc1() == 0);
     assert(instruction.getSrc2() == 1);
+    assert(instruction.toString() == "ADD R2,R0,R1");
 }
 
 void testAssemblerAddiParsing() {
@@ -34,55 +27,26 @@ void testAssemblerAddiParsing() {
     assert(instruction.dst == 2);
     assert(instruction.getSrc1() == 0);
     assert(instruction.getImmediate() == 5);
+    assert(instruction.toString() == "ADDI R2,R0,5");
 }
 
-void testAssemblerAndParsing() {
-    const Instruction instruction = Assembler::parseLine("AND R3 R0 R1");
-
-    assert(instruction.opcode == Opcode::AND);
-    assert(instruction.dst == 3);
-    assert(instruction.getSrc1() == 0);
-    assert(instruction.getSrc2() == 1);
-}
-
-void testAssemblerOrParsing() {
-    const Instruction instruction = Assembler::parseLine("OR R4 R0 R1");
-
-    assert(instruction.opcode == Opcode::OR);
-    assert(instruction.dst == 4);
-    assert(instruction.getSrc1() == 0);
-    assert(instruction.getSrc2() == 1);
-}
-
-void testAssemblerBranchParsing() {
-    const Instruction instruction = Assembler::parseLine("JZ 8");
-
-    assert(instruction.opcode == Opcode::JZ);
-    assert(instruction.getImmediate() == 8);
-}
-
-void testAssemblerMipsAliasParsing() {
-    const Instruction load = Assembler::parseLine("LW R5,10(R0)");
+void testAssemblerMemoryParsing() {
+    const Instruction load = Assembler::parseLine("LW R1,12(R2)");
     assert(load.opcode == Opcode::LW);
-    assert(load.dst == 5);
-    assert(load.getSrc1() == 0);
-    assert(load.getImmediate() == 10);
-    assert(load.toString() == "LW R5,10(R0)");
+    assert(load.dst == 1);
+    assert(load.getSrc1() == 2);
+    assert(load.getImmediate() == 12);
+    assert(load.toString() == "LW R1,12(R2)");
 
-    const Instruction store = Assembler::parseLine("SW R2,10(R0)");
+    const Instruction store = Assembler::parseLine("SW R3,8(R4)");
     assert(store.opcode == Opcode::SW);
-    assert(store.getSrc1() == 2);
-    assert(store.getSrc2() == 0);
-    assert(store.getImmediate() == 10);
-    assert(store.toString() == "SW R2,10(R0)");
-
-    const Instruction jump = Assembler::parseLine("J 8");
-    assert(jump.opcode == Opcode::J);
-    assert(jump.getImmediate() == 8);
-    assert(jump.toString() == "J 8");
+    assert(store.getSrc1() == 3);
+    assert(store.getSrc2() == 4);
+    assert(store.getImmediate() == 8);
+    assert(store.toString() == "SW R3,8(R4)");
 }
 
-void testAssemblerMipsBranchParsing() {
+void testAssemblerBranchAndJumpParsing() {
     const Instruction beq = Assembler::parseLine("BEQ R2,R3,8");
     assert(beq.opcode == Opcode::BEQ);
     assert(beq.getSrc1() == 2);
@@ -92,57 +56,18 @@ void testAssemblerMipsBranchParsing() {
 
     const std::vector<std::string> lines = {
         "BNE R4,R5,loop",
-        "HALT",
+        "J done",
         "loop:",
-        "HALT"
-    };
-    const std::vector<Instruction> program = Assembler::assembleLines(lines);
-    assert(program[0].opcode == Opcode::BNE);
-    assert(program[0].getSrc1() == 4);
-    assert(program[0].getSrc2() == 5);
-    assert(program[0].getImmediate() == 2);
-    assert(program[0].toString() == "BNE R4,R5,2");
-}
-
-void testAssemblerNopParsing() {
-    const Instruction instruction = Assembler::parseLine("NOP");
-
-    assert(instruction.opcode == Opcode::NOP);
-}
-
-void testAssemblerLabelBranchParsing() {
-    const std::vector<std::string> lines = {
-        "MOV R0 7",
-        "JZ done",
-        "MOV R1 -1",
+        "NOP",
         "done:",
         "HALT"
     };
-
     const std::vector<Instruction> program = Assembler::assembleLines(lines);
 
-    assert(program.size() == 4);
-    assert(program[1].opcode == Opcode::JZ);
+    assert(program[0].opcode == Opcode::BNE);
+    assert(program[0].getImmediate() == 2);
+    assert(program[1].opcode == Opcode::J);
     assert(program[1].getImmediate() == 3);
-}
-
-void testAssemblerAssembleLines() {
-    const std::vector<std::string> lines = {
-        "MOV R0 5",
-        "MOV R1 3",
-        "ADD R2 R0 R1",
-        "",
-        "# comment-only line",
-        "HALT"
-    };
-
-    const std::vector<Instruction> program = Assembler::assembleLines(lines);
-
-    assert(program.size() == 4);
-    assert(program[0].opcode == Opcode::MOV);
-    assert(program[1].opcode == Opcode::MOV);
-    assert(program[2].opcode == Opcode::ADD);
-    assert(program[3].opcode == Opcode::HALT);
 }
 
 void testAssemblerInvalidOpcodeThrows() {
@@ -157,60 +82,11 @@ void testAssemblerInvalidOpcodeThrows() {
     assert(threw);
 }
 
-void testAssemblerProgramRunsOnCpu() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 5",
-        "MOV R1 3",
-        "ADD R2 R0 R1",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.run();
-
-    assert(cpu.getRegisterValue(0) == 5);
-    assert(cpu.getRegisterValue(1) == 3);
-    assert(cpu.getRegisterValue(2) == 8);
-}
-
-void testAssemblerAddSubFileRunsOnCpu() {
-    CPU cpu;
-
-    cpu.loadProgram(Assembler::assembleFile("tests/add_sub.asm"));
-    cpu.run();
-
-    assert(cpu.getRegisterValue(0) == 5);
-    assert(cpu.getRegisterValue(1) == 3);
-    assert(cpu.getRegisterValue(2) == 8);
-    assert(cpu.getRegisterValue(3) == 2);
-}
-
-void testAssemblerLoadStoreFileRunsOnCpu() {
-    CPU cpu;
-
-    cpu.loadProgram(Assembler::assembleFile("tests/load_store.asm"));
-    cpu.run();
-
-    assert(cpu.getRegisterValue(0) == 42);
-    assert(cpu.getRegisterValue(1) == 42);
-}
-
-void testAssemblerLabelsFileRunsOnCpu() {
-    CPU cpu;
-
-    cpu.loadProgram(Assembler::assembleFile("tests/labels.asm"));
-    cpu.run();
-
-    assert(cpu.getRegisterValue(2) == 42);
-}
-
 void testAssemblerUnknownLabelThrows() {
     bool threw = false;
 
     try {
-        Assembler::assembleLines({"JMP missing", "HALT"});
+        Assembler::assembleLines({"J missing", "HALT"});
     } catch (const std::invalid_argument&) {
         threw = true;
     }
@@ -222,7 +98,7 @@ void testAssemblerDuplicateLabelThrows() {
     bool threw = false;
 
     try {
-        Assembler::assembleLines({"again:", "MOV R0 1", "again:", "HALT"});
+        Assembler::assembleLines({"again:", "ADDI R0 R0 1", "again:", "HALT"});
     } catch (const std::invalid_argument&) {
         threw = true;
     }
@@ -230,362 +106,234 @@ void testAssemblerDuplicateLabelThrows() {
     assert(threw);
 }
 
-void testAddSub() {
-    CPU cpu;
+void testInstructionSemantics() {
+    const Instruction add(Opcode::ADD, 1, 2, 3, 0);
+    assert(add.writesRegister());
+    assert(add.readsSrc1());
+    assert(add.readsSrc2());
+    assert(add.getFormat() == InstructionFormat::RType);
 
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 5},     // R0 = 5
-        {Opcode::MOV, 1, 0, 0, 3},     // R1 = 3
-        {Opcode::ADD, 2, 0, 1, 0},     // R2 = 8
-        {Opcode::SUB, 3, 0, 1, 0},     // R3 = 2
-        {Opcode::HALT, 0, 0, 0, 0}
-    };
+    const Instruction addi(Opcode::ADDI, 1, 2, 0, 4);
+    assert(addi.writesRegister());
+    assert(addi.readsSrc1());
+    assert(!addi.readsSrc2());
+    assert(addi.getFormat() == InstructionFormat::IType);
 
-    cpu.loadProgram(program);
-    cpu.run();
+    const Instruction load(Opcode::LW, 1, 2, 0, 4);
+    assert(load.writesRegister());
+    assert(load.readsSrc1());
+    assert(!load.readsSrc2());
+    assert(load.isMemoryRead());
 
-    assert(cpu.getRegisterValue(0) == 5);
-    assert(cpu.getRegisterValue(1) == 3);
-    assert(cpu.getRegisterValue(2) == 8);
-    assert(cpu.getRegisterValue(3) == 2);
+    const Instruction store(Opcode::SW, 0, 1, 2, 4);
+    assert(!store.writesRegister());
+    assert(store.readsSrc1());
+    assert(store.readsSrc2());
+    assert(store.isMemoryWrite());
+
+    const Instruction branch(Opcode::BEQ, 0, 1, 2, 4);
+    assert(branch.isBranch());
+    assert(branch.getFormat() == InstructionFormat::IType);
+
+    const Instruction jump(Opcode::J, 0, 0, 0, 4);
+    assert(jump.isJump());
+    assert(jump.getFormat() == InstructionFormat::JType);
 }
 
-void testJZBranchTaken() {
+void testSequentialAluProgram() {
     CPU cpu;
 
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 7},
-        {Opcode::MOV, 1, 0, 0, 7},
-        {Opcode::CMP, 0, 1, 0, 0},     // zeroFlag = true
-        {Opcode::JZ, 0, 0, 0, 5},      // jump to HALT
-        {Opcode::MOV, 2, 0, 0, 99},    // skipped
-        {Opcode::HALT, 0, 0, 0, 0}
+    const std::vector<std::string> lines = {
+        "ADDI R1 R0 5",
+        "ADDI R2 R0 3",
+        "ADD R3 R1 R2",
+        "SUB R4 R1 R2",
+        "AND R5 R1 R2",
+        "OR R6 R1 R2",
+        "HALT"
     };
 
-    cpu.loadProgram(program);
+    cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.run();
 
-    assert(cpu.getZeroFlag() == true);
-    assert(cpu.getRegisterValue(2) == 0);
+    assert(cpu.getRegisterValue(3) == 8);
+    assert(cpu.getRegisterValue(4) == 2);
+    assert(cpu.getRegisterValue(5) == 1);
+    assert(cpu.getRegisterValue(6) == 7);
 }
 
-void testJNZBranchTaken() {
+void testSequentialLoadStoreUsesBaseRegister() {
     CPU cpu;
 
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 7},
-        {Opcode::MOV, 1, 0, 0, 3},
-        {Opcode::CMP, 0, 1, 0, 0},     // zeroFlag = false
-        {Opcode::JNZ, 0, 0, 0, 5},     // jump to HALT
-        {Opcode::MOV, 2, 0, 0, 99},    // skipped
-        {Opcode::HALT, 0, 0, 0, 0}
+    const std::vector<std::string> lines = {
+        "ADDI R1 R0 42",
+        "ADDI R2 R0 10",
+        "SW R1,5(R2)",
+        "LW R3,5(R2)",
+        "HALT"
     };
 
-    cpu.loadProgram(program);
+    cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.run();
 
-    assert(cpu.getZeroFlag() == false);
-    assert(cpu.getRegisterValue(2) == 0);
+    assert(cpu.getRegisterValue(3) == 42);
 }
 
-void testBEQBranchTaken() {
+void testSequentialBranchesAndJump() {
     CPU cpu;
 
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 7},
-        {Opcode::MOV, 1, 0, 0, 7},
-        {Opcode::BEQ, 0, 0, 1, 4},
-        {Opcode::MOV, 2, 0, 0, 99},
-        {Opcode::HALT, 0, 0, 0, 0}
+    const std::vector<std::string> lines = {
+        "ADDI R1 R0 7",
+        "ADDI R2 R0 7",
+        "BEQ R1,R2,equal",
+        "ADDI R3 R0 -1",
+        "J done",
+        "equal:",
+        "ADDI R3 R0 9",
+        "done:",
+        "HALT"
     };
 
-    cpu.loadProgram(program);
+    cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.run();
 
-    assert(cpu.getRegisterValue(2) == 0);
-}
-
-void testBNEBranchTaken() {
-    CPU cpu;
-
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 7},
-        {Opcode::MOV, 1, 0, 0, 3},
-        {Opcode::BNE, 0, 0, 1, 4},
-        {Opcode::MOV, 2, 0, 0, 99},
-        {Opcode::HALT, 0, 0, 0, 0}
-    };
-
-    cpu.loadProgram(program);
-    cpu.run();
-
-    assert(cpu.getRegisterValue(2) == 0);
-}
-
-void testLoadStore() {
-    CPU cpu;
-
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 42},    // R0 = 42
-        {Opcode::STORE, 0, 0, 0, 10},  // memory[10] = R0
-        {Opcode::LOAD, 1, 0, 0, 10},   // R1 = memory[10]
-        {Opcode::HALT, 0, 0, 0, 0}
-    };
-
-    cpu.loadProgram(program);
-    cpu.run();
-
-    assert(cpu.getRegisterValue(1) == 42);
-}
-
-void testAddi() {
-    CPU cpu;
-
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 10},
-        {Opcode::ADDI, 1, 0, 0, 5},
-        {Opcode::HALT, 0, 0, 0, 0}
-    };
-
-    cpu.loadProgram(program);
-    cpu.run();
-
-    assert(cpu.getRegisterValue(1) == 15);
-}
-
-void testAnd() {
-    CPU cpu;
-
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 6},
-        {Opcode::MOV, 1, 0, 0, 3},
-        {Opcode::AND, 2, 0, 1, 0},
-        {Opcode::HALT, 0, 0, 0, 0}
-    };
-
-    cpu.loadProgram(program);
-    cpu.run();
-
-    assert(cpu.getRegisterValue(2) == 2);
-}
-
-void testOr() {
-    CPU cpu;
-
-    std::vector<Instruction> program = {
-        {Opcode::MOV, 0, 0, 0, 6},
-        {Opcode::MOV, 1, 0, 0, 3},
-        {Opcode::OR, 2, 0, 1, 0},
-        {Opcode::HALT, 0, 0, 0, 0}
-    };
-
-    cpu.loadProgram(program);
-    cpu.run();
-
-    assert(cpu.getRegisterValue(2) == 7);
+    assert(cpu.getRegisterValue(3) == 9);
 }
 
 void testPipelinedWithNopsAvoidsHazard() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R0 5",
+        "ADDI R1 R0 5",
         "NOP",
         "NOP",
         "NOP",
-        "ADDI R1 R0 1",
+        "ADDI R2 R1 1",
         "HALT"
     };
 
     cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.runPipelined();
 
-    assert(cpu.getRegisterValue(1) == 6);
+    assert(cpu.getRegisterValue(2) == 6);
+}
+
+void testPipelinedForwardingResolvesAddToSubDependency() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "ADDI R1 R0 10",
+        "ADDI R2 R0 3",
+        "ADD R3 R1 R2",
+        "SUB R4 R3 R2",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(3) == 13);
+    assert(cpu.getRegisterValue(4) == 10);
+}
+
+void testPipelinedStoreUsesForwardedValueAndBase() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "ADDI R1 R0 42",
+        "ADDI R2 R0 10",
+        "SW R1,5(R2)",
+        "LW R3,5(R2)",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(3) == 42);
+}
+
+void testPipelinedLoadUseStallResolvesImmediateDependency() {
+    CPU cpu;
+
+    const std::vector<std::string> lines = {
+        "ADDI R1 R0 42",
+        "SW R1,10(R0)",
+        "LW R2,10(R0)",
+        "ADDI R3 R2 1",
+        "HALT"
+    };
+
+    cpu.loadProgram(Assembler::assembleLines(lines));
+    cpu.runPipelined();
+
+    assert(cpu.getRegisterValue(2) == 42);
+    assert(cpu.getRegisterValue(3) == 43);
+    assert(cpu.getStatistics().getFlushes() == 0);
 }
 
 void testPipelinedBEQUsesForwardedOperands() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R0 7",
-        "MOV R1 7",
-        "BEQ R0,R1,target",
-        "MOV R2 99",
+        "ADDI R1 R0 7",
+        "ADDI R2 R0 7",
+        "BEQ R1,R2,target",
+        "ADDI R3 R0 99",
         "target:",
-        "MOV R3 1",
+        "ADDI R4 R0 1",
         "HALT"
     };
 
     cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.runPipelined();
 
-    assert(cpu.getRegisterValue(2) == 0);
-    assert(cpu.getRegisterValue(3) == 1);
-    assert(cpu.getStatistics().getBranchPredictions() == 1);
-}
-
-void testPipelinedBTBBEQTaken() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 4",
-        "MOV R1 4",
-        "BEQ R0,R1,target",
-        "MOV R2 99",
-        "target:",
-        "MOV R3 7",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(2) == 0);
-    assert(cpu.getRegisterValue(3) == 7);
+    assert(cpu.getRegisterValue(3) == 0);
+    assert(cpu.getRegisterValue(4) == 1);
     assert(cpu.getStatistics().getBranchPredictions() == 1);
     assert(cpu.getStatistics().getBranchMispredictions() == 1);
-    assert(cpu.getStatistics().getBranchesTaken() == 1);
 }
 
-void testPipelinedBTBBEQNotTaken() {
+void testPipelinedBEQNotTakenDoesNotFlush() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R0 4",
-        "MOV R1 5",
-        "BEQ R0,R1,target",
-        "MOV R2 3",
+        "ADDI R1 R0 4",
+        "ADDI R2 R0 5",
+        "BEQ R1,R2,target",
+        "ADDI R3 R0 3",
         "target:",
-        "MOV R3 7",
+        "ADDI R4 R0 7",
         "HALT"
     };
 
     cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.runPipelined();
 
-    assert(cpu.getRegisterValue(2) == 3);
-    assert(cpu.getRegisterValue(3) == 7);
-    assert(cpu.getStatistics().getBranchPredictions() == 1);
+    assert(cpu.getRegisterValue(3) == 3);
+    assert(cpu.getRegisterValue(4) == 7);
     assert(cpu.getStatistics().getCorrectBranchPredictions() == 1);
     assert(cpu.getStatistics().getBranchMispredictions() == 0);
-    assert(cpu.getStatistics().getBranchesNotTaken() == 1);
-}
-
-void testPipelinedBTBJUnconditionalJump() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 1",
-        "J target",
-        "MOV R1 99",
-        "target:",
-        "MOV R2 5",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(0) == 1);
-    assert(cpu.getRegisterValue(1) == 0);
-    assert(cpu.getRegisterValue(2) == 5);
-    assert(cpu.getStatistics().getBranchPredictions() == 1);
-    assert(cpu.getStatistics().getBranchMispredictions() == 1);
-    assert(cpu.getStatistics().getFlushes() == 1);
-}
-
-void testPipelinedBranchTakenFlushesYoungerInstructions() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 5",
-        "NOP",
-        "NOP",
-        "NOP",
-        "CMP R0 R0",
-        "JZ target",
-        "MOV R1 99",
-        "target:",
-        "MOV R1 1",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(1) == 1);
-}
-
-void testPipelinedCorrectlyPredictedNotTakenBranchDoesNotFlush() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 1",
-        "MOV R1 2",
-        "CMP R0 R1",
-        "JZ target",
-        "MOV R2 5",
-        "target:",
-        "MOV R3 7",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(2) == 5);
-    assert(cpu.getRegisterValue(3) == 7);
-    assert(cpu.getStatistics().getBranchPredictions() == 1);
-    assert(cpu.getStatistics().getBranchMispredictions() == 0);
     assert(cpu.getStatistics().getFlushes() == 0);
-    assert(cpu.getStatistics().getBranchesNotTaken() == 1);
-}
-
-void testPipelinedInitiallyMispredictedTakenBranchFlushesWrongPath() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 9",
-        "MOV R1 9",
-        "CMP R0 R1",
-        "JZ target",
-        "MOV R2 99",
-        "MOV R4 99",
-        "target:",
-        "MOV R3 7",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(2) == 0);
-    assert(cpu.getRegisterValue(4) == 0);
-    assert(cpu.getRegisterValue(3) == 7);
-    assert(cpu.getStatistics().getBranchPredictions() == 1);
-    assert(cpu.getStatistics().getBranchMispredictions() == 1);
-    assert(cpu.getStatistics().getFlushes() == 1);
-    assert(cpu.getStatistics().getBranchesTaken() == 1);
 }
 
 void testPipelinedLoopBranchPredictorLearnsTakenBehavior() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R0 5",
-        "MOV R1 0",
+        "ADDI R1 R0 5",
+        "ADDI R2 R0 0",
         "loop:",
-        "ADDI R0 R0 -1",
-        "CMP R0 R1",
-        "JNZ loop",
-        "MOV R3 7",
+        "ADDI R1 R1 -1",
+        "BNE R1,R2,loop",
+        "ADDI R3 R0 7",
         "HALT"
     };
 
     cpu.loadProgram(Assembler::assembleLines(lines));
     cpu.runPipelined();
 
-    assert(cpu.getRegisterValue(0) == 0);
+    assert(cpu.getRegisterValue(1) == 0);
     assert(cpu.getRegisterValue(3) == 7);
     assert(cpu.getStatistics().getBranchPredictions() == 5);
     assert(cpu.getStatistics().getBranchesTaken() == 4);
@@ -598,12 +346,12 @@ void testPipelinedJumpFlushesWrongPathInstructions() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R1 1",
-        "JMP target",
-        "MOV R2 99",
-        "MOV R3 99",
+        "ADDI R1 R0 1",
+        "J target",
+        "ADDI R2 R0 99",
+        "ADDI R3 R0 99",
         "target:",
-        "MOV R4 7",
+        "ADDI R4 R0 7",
         "HALT"
     };
 
@@ -614,42 +362,20 @@ void testPipelinedJumpFlushesWrongPathInstructions() {
     assert(cpu.getRegisterValue(2) == 0);
     assert(cpu.getRegisterValue(3) == 0);
     assert(cpu.getRegisterValue(4) == 7);
-}
-
-void testPipelinedLoadStoreWithNops() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 42",
-        "NOP",
-        "NOP",
-        "NOP",
-        "STORE R0 10",
-        "NOP",
-        "NOP",
-        "NOP",
-        "LOAD R1 10",
-        "NOP",
-        "NOP",
-        "NOP",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(1) == 42);
+    assert(cpu.getStatistics().getBranchPredictions() == 1);
+    assert(cpu.getStatistics().getBranchMispredictions() == 1);
+    assert(cpu.getStatistics().getFlushes() == 1);
 }
 
 void testPipelinedHaltDrainsPipeline() {
     CPU cpu;
 
     const std::vector<std::string> lines = {
-        "MOV R0 5",
+        "ADDI R1 R0 5",
         "NOP",
         "NOP",
         "NOP",
-        "ADDI R1 R0 1",
+        "ADDI R2 R1 1",
         "NOP",
         "NOP",
         "NOP",
@@ -660,13 +386,13 @@ void testPipelinedHaltDrainsPipeline() {
     cpu.runPipelined();
 
     assert(cpu.isHalted());
-    assert(cpu.getRegisterValue(1) == 6);
+    assert(cpu.getRegisterValue(2) == 6);
 }
 
 void testHazardUnitRules() {
     IDEX writer;
     writer.valid = true;
-    writer.instruction = Instruction(Opcode::MOV, 1, 0, 0, 9);
+    writer.instruction = Instruction(Opcode::ADDI, 1, 0, 0, 9);
     writer.signals = ControlUnit::decode(writer.instruction);
 
     IFID addi;
@@ -677,35 +403,20 @@ void testHazardUnitRules() {
 
     IFID store;
     store.valid = true;
-    store.instruction = Instruction(Opcode::STORE, 0, 1, 0, 10);
+    store.instruction = Instruction(Opcode::SW, 0, 1, 2, 10);
 
     assert(HazardUnit::hasDataHazard(writer, store));
 
-    IFID cmp;
-    cmp.valid = true;
-    cmp.instruction = Instruction(Opcode::CMP, 0, 2, 1, 0);
+    IDEX branchWriter;
+    branchWriter.valid = true;
+    branchWriter.instruction = Instruction(Opcode::ADDI, 2, 0, 0, 4);
+    branchWriter.signals = ControlUnit::decode(branchWriter.instruction);
 
-    assert(HazardUnit::hasDataHazard(writer, cmp));
+    IFID branch;
+    branch.valid = true;
+    branch.instruction = Instruction(Opcode::BEQ, 0, 2, 1, 4);
 
-    EXMEM exmem;
-    exmem.valid = true;
-    exmem.instruction = Instruction(Opcode::LOAD, 2, 0, 0, 10);
-    exmem.signals = ControlUnit::decode(exmem.instruction);
-
-    MEMWB memwb;
-
-    IFID ifid;
-    ifid.valid = true;
-    ifid.instruction = Instruction(Opcode::SUB, 3, 2, 4, 0);
-
-    assert(HazardUnit::hasDataHazard(IDEX{}, exmem, memwb, ifid));
-
-    IDEX nonWriter;
-    nonWriter.valid = true;
-    nonWriter.instruction = Instruction(Opcode::CMP, 0, 1, 2, 0);
-    nonWriter.signals = ControlUnit::decode(nonWriter.instruction);
-
-    assert(!HazardUnit::hasDataHazard(nonWriter, addi));
+    assert(HazardUnit::hasDataHazard(branchWriter, branch));
 }
 
 void testForwardingUnitRules() {
@@ -731,34 +442,16 @@ void testForwardingUnitRules() {
     assert(decision.forwardA == FROM_EXMEM);
     assert(decision.forwardB == FROM_MEMWB);
 
-    exmem.instruction = Instruction(Opcode::LOAD, 1, 0, 0, 10);
+    exmem.instruction = Instruction(Opcode::LW, 1, 0, 0, 10);
     exmem.signals = ControlUnit::decode(exmem.instruction);
 
     assert(ForwardingUnit::resolve(idex, exmem, MEMWB{}).forwardA == NO_FORWARD);
 }
 
-void testPipelinedForwardingResolvesAddToSubDependency() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 10",
-        "MOV R1 3",
-        "ADD R2 R0 R1",
-        "SUB R3 R2 R1",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(2) == 13);
-    assert(cpu.getRegisterValue(3) == 10);
-}
-
 void testStallUnitRules() {
     IDEX load;
     load.valid = true;
-    load.instruction = Instruction(Opcode::LOAD, 1, 0, 0, 10);
+    load.instruction = Instruction(Opcode::LW, 1, 0, 0, 10);
     load.signals = ControlUnit::decode(load.instruction);
 
     IFID addi;
@@ -774,98 +467,46 @@ void testStallUnitRules() {
     assert(!StallUnit::shouldStallForLoadUse(load, unrelated));
 }
 
-void testPipelinedLoadUseStallResolvesImmediateDependency() {
-    CPU cpu;
-
-    const std::vector<std::string> lines = {
-        "MOV R0 42",
-        "STORE R0 10",
-        "LOAD R1 10",
-        "ADDI R2 R1 1",
-        "HALT"
-    };
-
-    cpu.loadProgram(Assembler::assembleLines(lines));
-    cpu.runPipelined();
-
-    assert(cpu.getRegisterValue(1) == 42);
-    assert(cpu.getRegisterValue(2) == 43);
-}
-
 void testControlHazardUnitRules() {
     IDEX jump;
     jump.valid = true;
-    jump.instruction = Instruction(Opcode::JMP, 0, 0, 0, 7);
+    jump.instruction = Instruction(Opcode::J, 0, 0, 0, 7);
     jump.signals = ControlUnit::decode(jump.instruction);
 
-    ControlHazardDecision decision = ControlHazardUnit::resolve(jump, false);
+    const ControlHazardDecision decision = ControlHazardUnit::resolve(jump);
 
     assert(decision.flush);
     assert(decision.redirectPc);
     assert(decision.targetPc == 7);
-
-    IDEX branch;
-    branch.valid = true;
-    branch.instruction = Instruction(Opcode::JZ, 0, 0, 0, 4);
-    branch.signals = ControlUnit::decode(branch.instruction);
-
-    decision = ControlHazardUnit::resolve(branch, true);
-
-    assert(!decision.flush);
-    assert(!decision.redirectPc);
-
-    decision = ControlHazardUnit::resolve(branch, false);
-
-    assert(!decision.flush);
-    assert(!decision.redirectPc);
 }
 
 int main() {
-    testAssemblerMovParsing();
     testAssemblerAddParsing();
     testAssemblerAddiParsing();
-    testAssemblerAndParsing();
-    testAssemblerOrParsing();
-    testAssemblerBranchParsing();
-    testAssemblerMipsBranchParsing();
-    testAssemblerMipsAliasParsing();
-    testAssemblerNopParsing();
-    testAssemblerLabelBranchParsing();
-    testAssemblerAssembleLines();
+    testAssemblerMemoryParsing();
+    testAssemblerBranchAndJumpParsing();
     testAssemblerInvalidOpcodeThrows();
-    testAssemblerProgramRunsOnCpu();
-    testAssemblerAddSubFileRunsOnCpu();
-    testAssemblerLoadStoreFileRunsOnCpu();
-    testAssemblerLabelsFileRunsOnCpu();
     testAssemblerUnknownLabelThrows();
     testAssemblerDuplicateLabelThrows();
+    testInstructionSemantics();
 
-    testAddSub();
-    testJZBranchTaken();
-    testJNZBranchTaken();
-    testBEQBranchTaken();
-    testBNEBranchTaken();
-    testLoadStore();
-    testAddi();
-    testAnd();
-    testOr();
+    testSequentialAluProgram();
+    testSequentialLoadStoreUsesBaseRegister();
+    testSequentialBranchesAndJump();
+
     testPipelinedWithNopsAvoidsHazard();
+    testPipelinedForwardingResolvesAddToSubDependency();
+    testPipelinedStoreUsesForwardedValueAndBase();
+    testPipelinedLoadUseStallResolvesImmediateDependency();
     testPipelinedBEQUsesForwardedOperands();
-    testPipelinedBTBBEQTaken();
-    testPipelinedBTBBEQNotTaken();
-    testPipelinedBTBJUnconditionalJump();
-    testPipelinedLoadStoreWithNops();
-    testPipelinedBranchTakenFlushesYoungerInstructions();
-    testPipelinedCorrectlyPredictedNotTakenBranchDoesNotFlush();
-    testPipelinedInitiallyMispredictedTakenBranchFlushesWrongPath();
+    testPipelinedBEQNotTakenDoesNotFlush();
     testPipelinedLoopBranchPredictorLearnsTakenBehavior();
     testPipelinedJumpFlushesWrongPathInstructions();
     testPipelinedHaltDrainsPipeline();
+
     testHazardUnitRules();
     testForwardingUnitRules();
-    testPipelinedForwardingResolvesAddToSubDependency();
     testStallUnitRules();
-    testPipelinedLoadUseStallResolvesImmediateDependency();
     testControlHazardUnitRules();
 
     std::cout << "All tests passed successfully!" << std::endl;

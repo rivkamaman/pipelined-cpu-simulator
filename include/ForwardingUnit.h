@@ -28,8 +28,6 @@ public:
     );
 
 private:
-    static bool readsSrc1(const IDEX& idex);
-    static bool readsSrc2(const IDEX& idex);
     static int resolveSource(int src, const EXMEM& exmem, const MEMWB& memwb);
     static bool canForwardFromExmem(const EXMEM& exmem, int src);
     static bool canForwardFromMemwb(const MEMWB& memwb, int src);

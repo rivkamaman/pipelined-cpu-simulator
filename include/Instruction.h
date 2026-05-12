@@ -5,25 +5,25 @@
 
 // Instruction operation codes supported by the simulator.
 enum class Opcode {
-    MOV,
     ADD,
     ADDI,
     SUB,
     AND,
     OR,
-    LOAD,
-    STORE,
     LW,
     SW,
-    CMP,
     BEQ,
     BNE,
-    JMP,
     J,
-    JZ,
-    JNZ,
     NOP,
     HALT
+};
+
+enum class InstructionFormat {
+    RType,
+    IType,
+    JType,
+    Special
 };
 
 // A simple fixed-format instruction.
@@ -60,6 +60,16 @@ struct Instruction {
 
     // Return the immediate field used for constants, addresses, and targets.
     int getImmediate() const;
+
+    // Semantic helpers used by pipeline units so opcode behavior is centralized.
+    bool writesRegister() const;
+    bool readsSrc1() const;
+    bool readsSrc2() const;
+    bool isBranch() const;
+    bool isJump() const;
+    bool isMemoryRead() const;
+    bool isMemoryWrite() const;
+    InstructionFormat getFormat() const;
 
     // Convert the instruction into readable assembly-like text.
     std::string toString() const;

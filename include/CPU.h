@@ -37,9 +37,6 @@ public:
     // Read a register value for tests and diagnostics.
     std::int32_t getRegisterValue(std::size_t index) const;
 
-    // Read the current zero flag for tests and diagnostics.
-    bool getZeroFlag() const;
-
     // Read aggregate execution counters for tests and diagnostics.
     const CPUStatistics& getStatistics() const;
 
@@ -120,7 +117,6 @@ private:
     bool halted;
     bool fetchHalted;
     bool pipelineFlushRequested;
-    bool zeroFlag;
 };
 
 #endif

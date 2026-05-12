@@ -29,14 +29,96 @@ int Instruction::getImmediate() const {
     return immediate;
 }
 
+bool Instruction::writesRegister() const {
+    switch (opcode) {
+        case Opcode::ADD:
+        case Opcode::ADDI:
+        case Opcode::SUB:
+        case Opcode::AND:
+        case Opcode::OR:
+        case Opcode::LW:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Instruction::readsSrc1() const {
+    switch (opcode) {
+        case Opcode::ADD:
+        case Opcode::ADDI:
+        case Opcode::SUB:
+        case Opcode::AND:
+        case Opcode::OR:
+        case Opcode::LW:
+        case Opcode::SW:
+        case Opcode::BEQ:
+        case Opcode::BNE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Instruction::readsSrc2() const {
+    switch (opcode) {
+        case Opcode::ADD:
+        case Opcode::SUB:
+        case Opcode::AND:
+        case Opcode::OR:
+        case Opcode::SW:
+        case Opcode::BEQ:
+        case Opcode::BNE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Instruction::isBranch() const {
+    return opcode == Opcode::BEQ || opcode == Opcode::BNE;
+}
+
+bool Instruction::isJump() const {
+    return opcode == Opcode::J;
+}
+
+bool Instruction::isMemoryRead() const {
+    return opcode == Opcode::LW;
+}
+
+bool Instruction::isMemoryWrite() const {
+    return opcode == Opcode::SW;
+}
+
+InstructionFormat Instruction::getFormat() const {
+    switch (opcode) {
+        case Opcode::ADD:
+        case Opcode::SUB:
+        case Opcode::AND:
+        case Opcode::OR:
+            return InstructionFormat::RType;
+        case Opcode::ADDI:
+        case Opcode::LW:
+        case Opcode::SW:
+        case Opcode::BEQ:
+        case Opcode::BNE:
+            return InstructionFormat::IType;
+        case Opcode::J:
+            return InstructionFormat::JType;
+        case Opcode::NOP:
+        case Opcode::HALT:
+            return InstructionFormat::Special;
+    }
+
+    return InstructionFormat::Special;
+}
+
 std::string Instruction::toString() const {
     std::ostringstream output;
 
     // Recreate readable assembly text for execution and pipeline traces.
     switch (opcode) {
-        case Opcode::MOV:
-            output << "MOV R" << dst << "," << immediate;
-            break;
         case Opcode::ADD:
             output << "ADD R" << dst << ",R" << src1 << ",R" << src2;
             break;
@@ -52,20 +134,11 @@ std::string Instruction::toString() const {
         case Opcode::OR:
             output << "OR R" << dst << ",R" << src1 << ",R" << src2;
             break;
-        case Opcode::LOAD:
-            output << "LOAD R" << dst << "," << immediate;
-            break;
         case Opcode::LW:
             output << "LW R" << dst << "," << immediate << "(R" << src1 << ")";
             break;
-        case Opcode::STORE:
-            output << "STORE R" << src1 << "," << immediate;
-            break;
         case Opcode::SW:
             output << "SW R" << src1 << "," << immediate << "(R" << src2 << ")";
-            break;
-        case Opcode::CMP:
-            output << "CMP R" << src1 << ",R" << src2;
             break;
         case Opcode::BEQ:
             output << "BEQ R" << src1 << ",R" << src2 << "," << immediate;
@@ -73,17 +146,8 @@ std::string Instruction::toString() const {
         case Opcode::BNE:
             output << "BNE R" << src1 << ",R" << src2 << "," << immediate;
             break;
-        case Opcode::JMP:
-            output << "JMP " << immediate;
-            break;
         case Opcode::J:
             output << "J " << immediate;
-            break;
-        case Opcode::JZ:
-            output << "JZ " << immediate;
-            break;
-        case Opcode::JNZ:
-            output << "JNZ " << immediate;
             break;
         case Opcode::NOP:
             output << "NOP";

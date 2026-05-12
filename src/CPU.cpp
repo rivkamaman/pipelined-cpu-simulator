@@ -9,8 +9,7 @@ CPU::CPU(std::size_t memorySize, std::size_t registerCount)
       cycle(0),
       halted(false),
       fetchHalted(false),
-      pipelineFlushRequested(false),
-      zeroFlag(false) {
+      pipelineFlushRequested(false) {
 }
 
 void CPU::loadProgram(const std::vector<Instruction>& instructions) {
@@ -21,7 +20,6 @@ void CPU::loadProgram(const std::vector<Instruction>& instructions) {
     halted = false;
     fetchHalted = false;
     pipelineFlushRequested = false;
-    zeroFlag = false;
     stats.reset();
     traceHistory.clear();
     pipelineFetchStage.clear();
@@ -50,10 +48,6 @@ std::int32_t CPU::getRegisterValue(std::size_t index) const {
     return registers.read(index);
 }
 
-bool CPU::getZeroFlag() const {
-    return zeroFlag;
-}
-
 const CPUStatistics& CPU::getStatistics() const {
     return stats;
 }
@@ -66,7 +60,7 @@ void CPU::printPipelineTrace() const {
 }
 
 void CPU::printState(std::size_t executedPc) const {
-    TracePrinter::printCycle(cycle, executedPc, currentInstruction, registers, zeroFlag);
+    TracePrinter::printCycle(cycle, executedPc, currentInstruction, registers);
 }
 
 void CPU::printStats() const {

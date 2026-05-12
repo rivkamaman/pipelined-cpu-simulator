@@ -204,7 +204,7 @@ EXMEM CPU::executeStage(const IDEX& input) {
     }
 
     if (input.signals.isJump) {
-        const ControlHazardDecision control = ControlHazardUnit::resolve(input, zeroFlag);
+        const ControlHazardDecision control = ControlHazardUnit::resolve(input);
         std::size_t correctPc = input.pc + 1;
         if (control.redirectPc) {
             correctPc = control.targetPc;
@@ -228,14 +228,6 @@ EXMEM CPU::executeStage(const IDEX& input) {
 
     if (input.signals.isBranch) {
         bool actualTaken = false;
-
-        if (input.signals.branchType == BranchType::JZ && zeroFlag) {
-            actualTaken = true;
-        }
-
-        if (input.signals.branchType == BranchType::JNZ && !zeroFlag) {
-            actualTaken = true;
-        }
 
         if (input.signals.branchType == BranchType::BEQ && operandA == operandB) {
             actualTaken = true;
@@ -279,8 +271,13 @@ EXMEM CPU::executeStage(const IDEX& input) {
         return output;
     }
 
-    if (input.signals.memRead || input.signals.memWrite) {
-        output.aluResult = immediate;
+    if (input.signals.memRead) {
+        output.aluResult = operandA + immediate;
+        return output;
+    }
+
+    if (input.signals.memWrite) {
+        output.aluResult = operandB + immediate;
         output.storeData = operandA;
         return output;
     }
@@ -306,19 +303,11 @@ EXMEM CPU::executeStage(const IDEX& input) {
         case ALUOp::OR:
             result = alu.bitwiseOr(operandA, operandB);
             break;
-        case ALUOp::CMP:
-            zeroFlag = alu.equal(operandA, operandB);
-            break;
         case ALUOp::NONE:
             break;
     }
 
     output.aluResult = result;
-
-    // CMP does not write back.
-    if (input.signals.aluOp == ALUOp::CMP) {
-        output.valid = false;
-    }
 
     return output;
 }

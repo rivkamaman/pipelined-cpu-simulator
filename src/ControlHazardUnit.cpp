@@ -1,6 +1,6 @@
 #include "ControlHazardUnit.h"
 
-ControlHazardDecision ControlHazardUnit::resolve(const IDEX& idex, bool zeroFlag) {
+ControlHazardDecision ControlHazardUnit::resolve(const IDEX& idex) {
     ControlHazardDecision decision;
 
     if (!idex.valid) {
@@ -17,6 +17,5 @@ ControlHazardDecision ControlHazardUnit::resolve(const IDEX& idex, bool zeroFlag
         return decision;
     }
 
-    (void)zeroFlag;
     return decision;
 }
