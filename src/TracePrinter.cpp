@@ -8,8 +8,7 @@ void TracePrinter::printCycle(
     std::size_t cycle,
     std::size_t pc,
     const Instruction& instruction,
-    const Registers& registers,
-    bool zeroFlag
+    const Registers& registers
 ) {
     // Print the cycle header and decoded instruction text.
     std::cout << "Cycle " << cycle
@@ -25,7 +24,7 @@ void TracePrinter::printCycle(
         }
     }
 
-    std::cout << " | ZF=" << (zeroFlag ? 1 : 0) << "\n\n";
+    std::cout << "\n\n";
 }
 
 void TracePrinter::printPipelineTrace(const std::vector<PipelineTrace>& traceHistory) {

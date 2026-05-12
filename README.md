@@ -1,50 +1,75 @@
-# Pipelined CPU Simulator
+# Simple RISC CPU Simulator
 
-A cycle-accurate MIPS-like RISC CPU simulator written in C++.
+C++ project implementing a small RISC-style CPU with:
+- Sequential execution mode
+- Real pipelined execution mode (`IF -> ID -> EX -> MEM -> WB`)
+- Signal-driven datapath execution (opcode decoding is centralized in `ControlUnit`)
 
-This project models both sequential and real pipelined CPU execution while simulating core computer architecture concepts such as hazards, forwarding, stalls, flushes, speculative execution, and dynamic branch prediction.
+## Features
 
----
+- Instruction set:
+  - `ADD`, `ADDI`, `SUB`, `AND`, `OR`
+  - `LW`, `SW`
+  - `BEQ`, `BNE`, `J`
+  - `NOP`, `HALT`
+- Assembler:
+  - Parses `.asm` text into `Instruction` objects
+  - Supports labels with two-pass parsing
+- Trace output:
+  - Sequential mode prints cycle/register state and pipeline-style trace
+  - Pipelined mode prints real per-cycle pipeline state:
+    - `Cycle | IF | ID | EX | MEM | WB`
+  - Pipeline runs also print a final CPU statistics summary with cycles, completed instructions, CPI, stalls, flushes, and forwarding events
 
-# Features
+## Architecture
 
-- Sequential and pipelined CPU execution
-- 5-stage pipeline (`IF → ID → EX → MEM → WB`)
-- Hazard detection
-- Data forwarding
-- Load-use stalls
-- Pipeline flushing
-- Dynamic branch prediction
-- Branch Target Buffer (BTB)
-- Custom MIPS-like ISA
-- Cycle-by-cycle pipeline tracing
-- CPU performance statistics
+- `ControlUnit::decode()` centralizes control signal generation.
+- `Instruction` exposes semantic helpers such as register read/write and memory/control-flow behavior.
+- CPU execute behavior is signal-driven.
+- ALU is separate from control and CPU flow logic.
+- Hazard logic is split into focused units:
+  - `HazardUnit` detects RAW dependencies for diagnostics
+  - `ForwardingUnit` resolves ALU/register RAW hazards by bypassing from `EXMEM` or `MEMWB`
+  - `StallUnit` inserts a one-cycle bubble for load-use hazards
+  - `ControlHazardUnit` resolves jumps/branches and requests pipeline flushes
+  - `CPUStatistics` collects execution counters during pipelined runs
 
----
+## Execution Modes
 
-# How to Run
+### 1. Sequential mode
 
-Build:
+- Uses `CPU::run()` / `CPU::step()`.
+- Executes one instruction per step.
+- Existing sequential behavior remains unchanged.
 
-```bash
-make
-```
+### 2. Pipelined mode (5-stage)
 
-Run:
+- Uses `CPU::runPipelined()` / `CPU::stepPipelined()`.
+- Stages:
+  1. IF fetches instruction
+  2. ID decodes control signals
+  3. EX computes ALU/address/branch decisions
+  4. MEM performs memory access
+  5. WB writes register results
 
-```bash
-./cpu_simulator
-```
+### Current pipeline constraints
 
-Run tests:
+- RAW hazards are detected and printed as warnings.
+- ALU/register RAW hazards are handled with forwarding from `EXMEM` and `MEMWB`.
+- Load-use hazards are handled with a one-cycle stall:
+  - `IFID` is frozen
+  - PC is frozen by skipping fetch
+  - a bubble is inserted into `IDEX`
+- Branch and jump prediction uses a small BTB with 2-bit counters in pipelined mode.
+- Mispredicted jumps/branches are handled with EX-stage flush:
+  - wrong-path `IFID` / `IDEX` work is cleared
+  - older `EXMEM` / `MEMWB` work drains normally
 
-```bash
-make test
-```
+Forwarding does not remove every possible delay: an immediate consumer after `LW` still needs the automatic load-use stall because loaded data is not available until after MEM.
 
----
+### Pipeline statistics
 
-# Project Architecture
+At the end of a pipelined trace, the simulator prints:
 
 ```text
 src/
@@ -172,10 +197,7 @@ The simulator tracks:
 
 # Future Improvements
 
-- Proper base+offset memory execution
-- Hardwired zero register (`R0`)
-- Cache simulation
-- Instruction encoding
-- Superscalar execution
-- Out-of-order execution
-- Verilog implementation for hardware comparison
+Tests are implemented with `assert` and include:
+- assembler parsing checks
+- sequential execution checks
+- pipelined execution checks (ALU, LW/SW, forwarding, load-use stalls, branch/jump flush, BTB prediction, HALT drain)

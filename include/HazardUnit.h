@@ -18,10 +18,8 @@ public:
     );
 
 private:
-    static bool readsRegister(const Instruction& instruction, int reg);
     static bool writerHazardsWithReader(
         bool writerValid,
-        const ControlSignals& writerSignals,
         const Instruction& writerInstruction,
         const IFID& ifid
     );

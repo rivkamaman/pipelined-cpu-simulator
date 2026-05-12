@@ -77,14 +77,14 @@ void CPU::executeWithSignals(
     if (signals.memRead) {
         registers.write(
             static_cast<std::size_t>(instruction.dst),
-            memory.read(static_cast<std::size_t>(immediate))
+            memory.read(static_cast<std::size_t>(registers.read(src1) + immediate))
         );
         return;
     }
 
     if (signals.memWrite) {
         memory.write(
-            static_cast<std::size_t>(immediate),
+            static_cast<std::size_t>(registers.read(src2) + immediate),
             registers.read(src1)
         );
         return;
@@ -100,14 +100,6 @@ void CPU::executeWithSignals(
 
     if (signals.isBranch) {
         bool branchTaken = false;
-
-        if (signals.branchType == BranchType::JZ && zeroFlag) {
-            branchTaken = true;
-        }
-
-        if (signals.branchType == BranchType::JNZ && !zeroFlag) {
-            branchTaken = true;
-        }
 
         if (signals.branchType == BranchType::BEQ
             && registers.read(src1) == registers.read(src2)) {
@@ -129,13 +121,11 @@ void CPU::executeWithSignals(
         return;
     }
 
-    // MOV reaches this path with ALUOp::NONE and regWrite set.
     if (signals.aluOp == ALUOp::NONE && !signals.regWrite) {
         return;
     }
 
-    // Immediate is the default write-back value for MOV.
-    int result = immediate;
+    int result = 0;
 
     switch (signals.aluOp) {
         case ALUOp::ADD:
@@ -164,12 +154,6 @@ void CPU::executeWithSignals(
             break;
         case ALUOp::OR:
             result = alu.bitwiseOr(
-                registers.read(src1),
-                registers.read(src2)
-            );
-            break;
-        case ALUOp::CMP:
-            zeroFlag = alu.equal(
                 registers.read(src1),
                 registers.read(src2)
             );

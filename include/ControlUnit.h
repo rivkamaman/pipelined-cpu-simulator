@@ -10,15 +10,12 @@ enum class ALUOp {
     ADDI,
     SUB,
     AND,
-    OR,
-    CMP
+    OR
 };
 
 // Conditional branch behavior selected during decode.
 enum class BranchType {
     NONE,
-    JZ,
-    JNZ,
     BEQ,
     BNE
 };

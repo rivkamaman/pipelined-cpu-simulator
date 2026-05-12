@@ -19,8 +19,6 @@ public:
     // Return left | right for OR instructions.
     int bitwiseOr(int left, int right) const;
 
-    // Return true when both operands are equal for CMP instructions.
-    bool equal(int left, int right) const;
 };
 
 #endif
