@@ -268,15 +268,3 @@ make test
 ```
 
 ---
-
-# Future Improvements
-
-Possible future extensions:
-- Hardwired zero register (`R0`)
-- Cache simulation
-- Instruction encoding / binary loading
-- Multi-level branch prediction
-- Superscalar execution
-- Out-of-order execution
-- Tomasulo algorithm
-- Verilog implementation for hardware comparison
